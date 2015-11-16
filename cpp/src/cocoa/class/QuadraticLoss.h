@@ -115,7 +115,7 @@ public:
 	                                  D &dualobj, D &a) {
 
 		D rho = 0.8;
-		D c1ls = 0.5;
+		D c1ls = 0.01;
 		//a = 10000.0;
 		int iter = 0;
 		std::vector<D> potent(instance.n);
@@ -152,6 +152,113 @@ public:
 		}
 	}
 
+	virtual void wolfe_linesearch(ProblemData<L, D> &instance, std::vector<D> &deltaAlpha, 
+			std::vector<D> &search_direction, std::vector<D> &w, D &dualobj, D &a) {
+
+		D a0 = 0;
+		D a1 = 1.0;
+		D amax = 10.0;
+		D c1ls = 0.01;    // parameter for sufficient decrease condition
+		D c2ls = 0.2;     // parameter for curvature condition
+		int iter = 0;
+		
+		D objCurrent, objPrevious, objNext, gradD, gradDNext;
+		std::vector<D> potent(instance.n);
+		std::vector<D> grad(instance.n);
+		std::vector<D> gradNext(instance.n);
+
+		if (c1ls > c2ls)
+			printf("the parameter c1ls should be less that c2ls;");
+
+		this->compute_subproproblem_obj(instance, deltaAlpha, w, objCurrent);
+		objPrevious = objCurrent;
+		this->compute_subproproblem_gradient(instance, grad, deltaAlpha, w);
+		gradD = cblas_ddot(instance.n, &grad[0], 1, &search_direction[0], 1);
+
+		while (1){
+			for (L i = 0; i < instance.n; i++) {
+				potent[i] = deltaAlpha[i] - a1 * search_direction[i];
+			}
+			this->compute_subproproblem_obj(instance, potent, w, objNext);
+
+			if (objNext > objCurrent - c1ls * a1 * gradD || (objNext >= objPrevious && iter > 1)){
+				zoom(instance, w, a0, a1, deltaAlpha, search_direction, objCurrent, gradD, c1ls, c2ls, a);
+				cblas_dcopy(instance.n, &potent[0], 1, &deltaAlpha[0], 1);
+				break;
+			}
+			this->compute_subproproblem_gradient(instance, gradNext, potent, w);
+			gradDNext = cblas_ddot(instance.n, &gradNext[0], 1, &search_direction[0], 1);
+
+			if (abs(gradDNext) <= c2ls * gradD){
+				a = a1;
+				cblas_dcopy(instance.n, &potent[0], 1, &deltaAlpha[0], 1);
+				break;
+			}
+
+			if (gradDNext <= 0){
+				zoom(instance, w, a1, a0, deltaAlpha, search_direction, objCurrent, gradD, c1ls, c2ls, a);
+				cblas_dcopy(instance.n, &potent[0], 1, &deltaAlpha[0], 1);
+				break;
+			}
+
+			if (a1 >= (1 - 1e-4) * amax){
+				a = a1;
+				cblas_dcopy(instance.n, &potent[0], 1, &deltaAlpha[0], 1);
+				break;
+			}
+			a0 = a1;
+			a1 = 0.5 * (a1 + amax);
+			iter++;
+			if(iter > 50)
+				break;
+		}
+	}
+
+
+	virtual void zoom(ProblemData<L, D> &instance, std::vector<D> &w, 
+		D &aLow, D &aHigh, std::vector<D> &x,
+		std::vector<D> &d, D &obj, D &gradD, D &c1, D &c2, D &a){
+
+		std::vector<D> potentMid(instance.n);
+		std::vector<D> potentLow(instance.n);
+		std::vector<D> gradMid(instance.n);
+		D objLow, objMid, gradDMid;
+		int iter = 0;
+		while (1){
+			iter++;
+
+			D aMid = 0.5 * (aLow + aHigh);
+			for (L i = 0; i < instance.n; i++) {
+				potentMid[i] = x[i] - aMid * d[i];
+				potentLow[i] = x[i] - aLow * d[i];				
+			}
+			this->compute_subproproblem_obj(instance, potentMid, w, objMid);
+			this->compute_subproproblem_obj(instance, potentLow, w, objLow);
+
+			if (objLow > obj - c1 * aMid * gradD || objMid >= objLow)
+				aHigh = aMid;
+			else{
+				this->compute_subproproblem_gradient(instance, gradMid, potentMid, w);
+				gradDMid = cblas_ddot(instance.n, &gradMid[0], 1, &d[0], 1);
+				if (abs(gradDMid) <= c2 * gradD){
+					a = aMid;
+					break;
+				}
+				if (gradDMid * (aHigh - aLow) >= 0)
+					aHigh = aLow;
+				
+				aLow = aMid;
+			}
+
+			if (abs(aLow - aHigh) < 1e-8) {
+				a = 0.5 * (aLow + aHigh);	
+				break;
+			}
+
+		}
+
+	}
+
 
 	virtual void LBFGS_update(ProblemData<L, D> &instance, std::vector<D> &search_direction, std::vector<D> old_grad,
 	                          std::vector<D> &sk, std::vector<D> &rk, std::vector<D> gradient, std::vector<D> &oneoversy,
@@ -176,7 +283,7 @@ public:
 			// 	cout<<rk[instance.n * i + 11] <<"  ";
 			// cout<<flag_old<<endl;
 			oneoversy[flag_old] = 1.0 / cblas_ddot(instance.n, &rk[startPoint], 1, &sk[startPoint], 1);
-cout<<oneoversy[flag_old]<<endl;
+//cout<<1./oneoversy[flag_old]<<endl;
 			std::vector<D> aa(limit_BFGS);
 
 			int kai = flag_BFGS;

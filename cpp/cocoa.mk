@@ -1,20 +1,15 @@
 
 
-DISTRIBUTED_INCLUDE=-I.  -I /usr/local/include/ -I /usr/local/Cellar/boost/1.57.0/include/  -I /usr/local/Cellar/gcc/5.2.0/lib/gcc/5/gcc/x86_64-apple-darwin14.5.0/5.2.0/include 
-
-DISTRIBUTED_LIB_PATH=  -L /usr/local/lib/ -L /usr/local/Cellar/boost/1.57.0/lib  -L /usr/local/Cellar/gcc/5.2.0/lib/gcc/5/ 
-
+DISTRIBUTED_INCLUDE= -I /usr/local/include/ -I /usr/local/boost-1.56.0/include 
+DISTRIBUTED_LIB_PATH=  -L /usr/local/lib/ -L /usr/local/boost-1.56.0/lib/ -L /usr/lib/x86_64-linux-gnu/ -L /home/mcx/Home/R/bbinutils_sb/lib/ 
 
 
-
-DISTRIBUTED_COMPILER_OPTIONS=-fopenmp -O3 -fpermissive -DHAVE_CONFIG_H -DAUTOTOOLS_BUILD   -DMPICH_IGNORE_CXX_SEEK 
+DISTRIBUTED_COMPILER_OPTIONS= -fpermissive -DHAVE_CONFIG_H -DAUTOTOOLS_BUILD   -DMPICH_IGNORE_CXX_SEEK 
 #DISTRIBUTED_LINK= -lboost_mpi -lzoltan -lboost_timer -lboost_serialization -lboost_thread -lgsl -lgslcblas -lm -stdlib=libstdc++ -lstdc++
-DISTRIBUTED_LINK= -lgslcblas  -lboost_system-mt -lboost_timer-mt -lboost_chrono-mt -lboost_mpi-mt -lboost_serialization-mt -fopenmp  -lgsl -lm -lboost_thread-mt  
+DISTRIBUTED_LINK= -lgslcblas  -lboost_system -lboost_timer -lboost_chrono -lboost_mpi -lboost_serialization -fopenmp  -lgsl -lboost_thread  
 
+mpiP_root=/home/mcx/R/mpiP_sb/
 
-	
-#MATLABROOT=/opt/programs/MATLAB/R2011a/
-MATLABROOT=/usr/local/matlab/latest/
 
 #===========================
 
@@ -23,7 +18,7 @@ MATLABROOT=/usr/local/matlab/latest/
 
 # compiler which should be used
 MPICC = mpicc
-MPICPP = mpicxx
+MPICPP = mpic++
 #MPICPP = CC
 
 #============================================================================================
@@ -32,14 +27,23 @@ MPICPP = mpicxx
 
 # Cluster Consolve Solver            
 c:
-	$(MPICPP) -O3 $(DISTRIBUTED_COMPILER_OPTIONS) $(DISTRIBUTED_INCLUDE)   \
-	-o $(BUILD_FOLDER)Cocoa \
+	$(MPICPP) -L${mpiP_root}/lib  \
 	$(FRONTENDS)../cocoa/cocoa.cpp \
-	-I $(MATLABROOT)/extern/include     \
-	$(DISTRIBUTED_LIB_PATH)  $(DISTRIBUTED_LINK)   -I ~/Downloads/dlib-18.18/
-	#mpirun -np 4  $(BUILD_FOLDER)Cocoa -A data/a1a.4/a1a -l 0.001 -C 50 -I 10 -f 3 -a 1  -p 0.001 -M 3
-	#mpirun -np 4  $(BUILD_FOLDER)Cocoa -A data/rcv1_train.binary.4/rcv1_train.binary -l 0.001 -C 20 -I 1000 -f 3 -a 1  -p 0.001 -M 5
-	mpirun -np 4  $(BUILD_FOLDER)Cocoa -A data/rcv.4/rcv -l 0.0001 -C 20 -I 10 -f 3 -a 1  -p 0.001 -M 2
+	$(DISTRIBUTED_COMPILER_OPTIONS) $(DISTRIBUTED_INCLUDE)   \
+	-o $(BUILD_FOLDER)Cocoa \
+	$(DISTRIBUTED_LIB_PATH)  $(DISTRIBUTED_LINK)   
+	mpirun -n 4 ./$(BUILD_FOLDER)Cocoa  -A data/rcv1_train.binary.4/rcv1_train.binary -l 0.001 -C 20 -I 2 -f 3 -a 1  -p 0.001 -M 3
+
+cocoa-mpip:
+	export MPIP="-y -p"
+	$(MPICPP) -g 	-L${mpiP_root}/lib  \
+	$(FRONTENDS)../cocoa/cocoa.cpp \
+	-lmpiP -lm  -lbfd -liberty  -lunwind \
+	$(DISTRIBUTED_COMPILER_OPTIONS) $(DISTRIBUTED_INCLUDE)   \
+	-o $(BUILD_FOLDER)Cocoa \
+	$(DISTRIBUTED_LIB_PATH)  $(DISTRIBUTED_LINK)   
+	mpirun -n 4 ./$(BUILD_FOLDER)Cocoa  -A data/a1a.4/a1a -l 0.1 -C 500 -I 10 -f 3 -a 1  -p 0.001 -M 0
+	
 
 disco:
 	$(MPICPP) -O3 $(DISTRIBUTED_COMPILER_OPTIONS) $(DISTRIBUTED_INCLUDE) \

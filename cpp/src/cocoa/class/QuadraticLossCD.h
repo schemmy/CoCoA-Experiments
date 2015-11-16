@@ -232,8 +232,7 @@ public:
 		for (unsigned int t = 0; t < distributedSettings.iters_communicate_count; t++) {
 			start = gettime_();
 			for (int jj = 0; jj < distributedSettings.iters_bulkIterations_count; jj++) {
-
-				a = 1.0 * instance.n;
+				a = 0.1 * instance.n;
 				dualobj = 0;
 				cblas_set_to_zero(deltaW);
 				cblas_set_to_zero(deltaAlpha);
@@ -241,6 +240,7 @@ public:
 
 					this->compute_subproproblem_gradient(instance, gradient, deltaAlpha, w);
 					this->backtrack_linesearch(instance, deltaAlpha, gradient, w, dualobj, a);
+					//cout<<a<<endl;
 
 				}
 
@@ -285,7 +285,7 @@ public:
 		double elapsedTime = 0;
 
 		double dualobj = 0;
-		int limit_BFGS = 5;
+		int limit_BFGS =  distributedSettings.iterationsPerThread;
 		std::vector<double> old_grad(instance.n);
 		std::vector<double> old_deltaAlpha(instance.n);
 		std::vector<double> sk(instance.n * limit_BFGS);
@@ -317,8 +317,8 @@ public:
 					cblas_dcopy(instance.n, &deltaAlpha[0], 1, &old_deltaAlpha[0], 1);
 					cblas_dcopy(instance.n, &gradient[0], 1, &old_grad[0], 1);
 
-					this->backtrack_linesearch(instance, deltaAlpha, search_direction, w, dualobj, stepsize);
-
+					this->wolfe_linesearch(instance, deltaAlpha, search_direction, w, dualobj, stepsize);
+//cout<<stepsize<<endl;
 					for (L idx = 0; idx < instance.n; idx++)
 						sk[instance.n * flag_BFGS + idx] = deltaAlpha[idx] - old_deltaAlpha[idx];
 					//cout<<deltaAlpha[11] - old_deltaAlpha[11]<<"      ";
