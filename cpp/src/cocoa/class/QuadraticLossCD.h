@@ -551,7 +551,7 @@ public:
 				cblas_set_to_zero(deltaW);
 				cblas_set_to_zero(deltaAlpha);
 
-				double a = 0.1 * instance.n;
+				double a = 0.001 * instance.n;
 				this->compute_subproproblem_gradient(instance, gradient, deltaAlpha, w);
 				this->wolfe_linesearch(instance, deltaAlpha, gradient, w, dualobj, a);
 
