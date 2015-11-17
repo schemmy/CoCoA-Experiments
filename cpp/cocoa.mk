@@ -32,8 +32,8 @@ c:
 	$(DISTRIBUTED_COMPILER_OPTIONS) $(DISTRIBUTED_INCLUDE)   \
 	-o $(BUILD_FOLDER)Cocoa \
 	$(DISTRIBUTED_LIB_PATH)  $(DISTRIBUTED_LINK)   
-	mpirun -n 4 ./$(BUILD_FOLDER)Cocoa  -A data/rcv.4/rcv -l 0.0001 -C 20 -I 5 -f 3 -a 0  -p 0.001 -M 5	
-	mpirun -n 4 ./$(BUILD_FOLDER)Cocoa  -A data/rcv.4/rcv -l 0.0001 -C 20 -I 5 -f 3 -a 1  -p 0.001 -M 5
+	#mpirun -n 4 ./$(BUILD_FOLDER)Cocoa  -A data/rcv.4/rcv -l 0.0001 -C 20 -I 10 -f 3 -a 0  -p 0.001 -M 2
+	mpirun -n 4 ./$(BUILD_FOLDER)Cocoa  -A data/rcv.4/rcv -l 0.0001 -C 20 -I 10 -f 3 -a 1  -p 0.001 -M 2
 
 cocoa-mpip:
 	export MPIP="-y -p"

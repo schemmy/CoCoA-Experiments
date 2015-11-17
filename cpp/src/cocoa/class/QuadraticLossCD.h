@@ -232,16 +232,19 @@ public:
 		for (unsigned int t = 0; t < distributedSettings.iters_communicate_count; t++) {
 			start = gettime_();
 			for (int jj = 0; jj < distributedSettings.iters_bulkIterations_count; jj++) {
-				a = 0.1 * instance.n;
+				a = 0.01 * instance.n;
 				dualobj = 0;
 				cblas_set_to_zero(deltaW);
 				cblas_set_to_zero(deltaAlpha);
-				for (unsigned int it = 0; it < distributedSettings.iterationsPerThread; it++) {
+				for (unsigned int it = 0; it < 100; it++) {
 
 					this->compute_subproproblem_gradient(instance, gradient, deltaAlpha, w);
 					this->backtrack_linesearch(instance, deltaAlpha, gradient, w, dualobj, a);
 					//cout<<a<<endl;
-
+					//D gradNorm = cblas_l2_norm(instance.n, &gradient[0], 1);
+					//cout<<gradNorm<<endl;
+					//if (gradNorm <= 1.0 / distributedSettings.iterationsPerThread)
+					//	break;
 				}
 
 				for (unsigned int idx = 0; idx < instance.n; idx++) {

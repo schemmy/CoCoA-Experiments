@@ -122,7 +122,7 @@ public:
 
 		while (1) {
 
-			if (iter > 50) {
+			if (iter > 20) {
 				//cout<<a<<endl;
 				//a = 1.0;
 				//cblas_dcopy(instance.n, &potent[0], 1, &deltaAlpha[0], 1);
