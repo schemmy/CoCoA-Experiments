@@ -127,12 +127,21 @@ int main(int argc, char *argv[]) {
 
 
 	std::stringstream ss;
-	ss << ctx.matrixAFile << "_" << instance.lambda << "_"
+	int localsolver = distributedSettings.LocalMethods;
+	// ss << ctx.matrixAFile << "_" << instance.lambda << "_"
+	// 		<< distributedSettings.lossFunction << "_"
+	// 		<< distributedSettings.iters_communicate_count << "_"
+	// 		<< distributedSettings.iterationsPerThread << "_"
+	// 		<< instance.experimentName << "_" << distributedSettings.APPROX
+	// 		<< "_" << instance.theta << "_.log";	
+	ss << ctx.matrixAFile << "_" 
 			<< distributedSettings.lossFunction << "_"
+			<< localsolver << "_"
 			<< distributedSettings.iters_communicate_count << "_"
 			<< distributedSettings.iterationsPerThread << "_"
-			<< instance.experimentName << "_" << distributedSettings.APPROX
-			<< "_" << instance.theta << "_.log";
+			<< instance.lambda << "_"
+			<< distributedSettings.APPROX
+			<< ".log";
 	std::ofstream logFile;
 	if (ctx.settings.verbose) {
 		logFile.open(ss.str().c_str());
@@ -149,7 +158,6 @@ int main(int argc, char *argv[]) {
 
 //	cout<< instance.A_csr_row_ptr[instance.A_csr_row_ptr.size()-1] <<endl;
 
-	int localsolver = distributedSettings.LocalMethods;
 
 	switch (localsolver) {
 	case 0:
