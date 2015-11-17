@@ -243,8 +243,8 @@ public:
 					//cout<<a<<endl;
 					//D gradNorm = cblas_l2_norm(instance.n, &gradient[0], 1);
 					//cout<<gradNorm<<endl;
-					//if (gradNorm <= 1.0 / distributedSettings.iterationsPerThread)
-					//	break;
+					if (a <= 1e-12)
+						break;
 				}
 
 				for (unsigned int idx = 0; idx < instance.n; idx++) {
