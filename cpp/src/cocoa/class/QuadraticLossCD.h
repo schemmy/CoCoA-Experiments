@@ -236,7 +236,7 @@ public:
 				dualobj = 0;
 				cblas_set_to_zero(deltaW);
 				cblas_set_to_zero(deltaAlpha);
-				for (unsigned int it = 0; it < 100; it++) {
+				for (unsigned int it = 0; it < distributedSettings.iterationsPerThread; it++) {
 
 					this->compute_subproproblem_gradient(instance, gradient, deltaAlpha, w);
 					this->backtrack_linesearch(instance, deltaAlpha, gradient, w, dualobj, a);
