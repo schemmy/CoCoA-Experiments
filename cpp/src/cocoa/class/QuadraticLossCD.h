@@ -390,7 +390,7 @@ public:
 				for (unsigned int idx = 0; idx < instance.n; idx++)
 					cg_p[idx] = -cg_r[idx];
 
-				for (unsigned int it = 0; it < distributedSettings.iterationsPerThread; it++) { //control it upper bound
+				for (unsigned int it = 0; it < 100; it++) { //control it upper bound
 
 					D denom = 0.0;
 					D nomer = 0.0;
@@ -427,10 +427,10 @@ public:
 						cg_p[idx] = -cg_r[idx] + cg_beta * cg_p[idx];
 
 					D r_norm = cblas_l2_norm(instance.n, &cg_r[0], 1);
-					//if (r_norm < 1e-4) {
+					if (r_norm < distributedSettings.iterationsPerThread) {
 						//cout<<it<<endl;
-					//	break;
-					//}
+						break;
+					}
 				}
 				for (unsigned int idx = 0; idx < instance.n; idx++) {
 					for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++)
