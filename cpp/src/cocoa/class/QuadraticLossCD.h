@@ -428,7 +428,7 @@ public:
 
 					D r_norm = cblas_l2_norm(instance.n, &cg_r[0], 1);
 					if (r_norm < distributedSettings.iterationsPerThread) {
-						//cout<<it<<endl;
+						cout<<it<<endl;
 						break;
 					}
 				}
