@@ -32,7 +32,7 @@ c:
 	$(DISTRIBUTED_COMPILER_OPTIONS) $(DISTRIBUTED_INCLUDE)   \
 	-o $(BUILD_FOLDER)Cocoa \
 	$(DISTRIBUTED_LIB_PATH)  $(DISTRIBUTED_LINK)   
-	mpirun -n 4 ./$(BUILD_FOLDER)Cocoa  -A data/rcv1_train.binary.4/rcv1_train.binary -l 0.001 -C 20 -I 2 -f 3 -a 1  -p 0.001 -M 3
+	mpirun -n 4 ./$(BUILD_FOLDER)Cocoa  -A data/rcv1_train.binary.4/rcv1_train.binary -l 0.0001 -C 20 -I 1000 -f 3 -a 1  -p 0.001 -M 4
 
 cocoa-mpip:
 	export MPIP="-y -p"

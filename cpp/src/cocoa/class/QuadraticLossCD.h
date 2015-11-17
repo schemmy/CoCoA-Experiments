@@ -427,7 +427,8 @@ public:
 						cg_p[idx] = -cg_r[idx] + cg_beta * cg_p[idx];
 
 					D r_norm = cblas_l2_norm(instance.n, &cg_r[0], 1);
-					if (r_norm < distributedSettings.iterationsPerThread) {
+					//cout<<distributedSettings.iterationsPerThread<<endl;
+					if (r_norm < 1.0/ distributedSettings.iterationsPerThread) {
 						cout<<it<<endl;
 						break;
 					}
