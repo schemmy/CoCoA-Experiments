@@ -232,7 +232,7 @@ public:
 		for (unsigned int t = 0; t < distributedSettings.iters_communicate_count; t++) {
 			start = gettime_();
 			for (int jj = 0; jj < distributedSettings.iters_bulkIterations_count; jj++) {
-				a = 0.01 * instance.n;
+				a = 0.1 * instance.n;
 				dualobj = 0;
 				cblas_set_to_zero(deltaW);
 				cblas_set_to_zero(deltaAlpha);
@@ -310,7 +310,7 @@ public:
 				cblas_set_to_zero(deltaW);
 				cblas_set_to_zero(deltaAlpha);
 				this->compute_subproproblem_obj(instance, deltaAlpha, w, dualobj);
-				stepsize = 0.05 * instance.n;
+				stepsize = 0.1 * instance.n;
 
 				for (L iter_counter = 0; iter_counter < distributedSettings.iterationsPerThread; iter_counter++) {
 
