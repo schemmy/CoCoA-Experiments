@@ -645,7 +645,7 @@ public:
 
 				t1 = 0.5 * (1.0 + sqrt(1.0 + t0 * t0 * 4.0));
 				double tmpFrac = (t0 - 1) / t1;
-				Lip = 4.0 / instance.n;
+				Lip = 50.0 / instance.n;
 				int iter = 0;
 				while (1) {
 					Lip = Lip * eta;
