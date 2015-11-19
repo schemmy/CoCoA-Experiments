@@ -227,7 +227,7 @@ public:
 		while (1){
 			iter++;
 
-			D aMid = 0.2 * aLow + 0.8 * aHigh;
+			D aMid = 0.5 * (aLow + aHigh);
 			for (L i = 0; i < instance.n; i++) {
 				potentMid[i] = x[i] - aMid * d[i];
 				potentLow[i] = x[i] - aLow * d[i];				
@@ -251,7 +251,7 @@ public:
 			}
 
 			if (abs(aLow - aHigh) < 1e-8) {
-				a =  0.2 * aLow + 0.8 * aHigh;
+				a = 0.5 * (aLow + aHigh);	
 				break;
 			}
 
