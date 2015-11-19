@@ -310,7 +310,7 @@ public:
 				cblas_set_to_zero(deltaW);
 				cblas_set_to_zero(deltaAlpha);
 				this->compute_subproproblem_obj(instance, deltaAlpha, w, dualobj);
-				stepsize = 0.1 * instance.n;
+				stepsize = 0.001 * instance.n;
 
 				for (L iter_counter = 0; iter_counter < distributedSettings.iterationsPerThread; iter_counter++) {
 
