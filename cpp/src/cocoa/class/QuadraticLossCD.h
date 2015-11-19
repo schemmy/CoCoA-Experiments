@@ -321,7 +321,7 @@ public:
 					cblas_dcopy(instance.n, &gradient[0], 1, &old_grad[0], 1);
 
 					this->wolfe_linesearch(instance, deltaAlpha, search_direction, w, dualobj, stepsize);
-cout<<stepsize<<endl;
+//cout<<stepsize<<endl;
 					for (L idx = 0; idx < instance.n; idx++)
 						sk[instance.n * flag_BFGS + idx] = deltaAlpha[idx] - old_deltaAlpha[idx];
 					//cout<<deltaAlpha[11] - old_deltaAlpha[11]<<"      ";
