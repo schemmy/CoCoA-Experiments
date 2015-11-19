@@ -156,8 +156,8 @@ public:
 			std::vector<D> &search_direction, std::vector<D> &w, D &dualobj, D &a) {
 
 		D a0 = 0;
-		D a1 = 1.0;
-		D amax = 10.0;
+		D a1 = 100.0;
+		D amax = 1000.0;
 		D c1ls = 0.01;    // parameter for sufficient decrease condition
 		D c2ls = 0.2;     // parameter for curvature condition
 		int iter = 0;
@@ -250,7 +250,7 @@ public:
 				aLow = aMid;
 			}
 
-			if (abs(aLow - aHigh) < 1e-8) {
+			if (abs(aLow - aHigh) < 1e-4) {
 				a = 0.5 * (aLow + aHigh);	
 				break;
 			}
