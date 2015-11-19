@@ -250,7 +250,7 @@ public:
 				aLow = aMid;
 			}
 
-			if (abs(aLow - aHigh) < 1e-8) {
+			if (abs(aLow - aHigh) < 1e-12) {
 				a = 0.5 * (aLow + aHigh);	
 				break;
 			}
