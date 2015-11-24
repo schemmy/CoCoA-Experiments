@@ -201,7 +201,7 @@ public:
 				break;
 			}
 
-			if (a1 >= (1 - 1e-4) * amax){
+			if (a1 >= (1 - 1e-1) * amax){
 				a = 1.0;
 				for (L i = 0; i < instance.n; i++) 
 					potent[i] = deltaAlpha[i] - a * search_direction[i];
