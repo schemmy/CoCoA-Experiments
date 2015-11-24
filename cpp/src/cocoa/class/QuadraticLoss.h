@@ -202,9 +202,9 @@ public:
 			}
 
 			if (a1 >= (1 - 1e-1) * amax){
-				a = 1.0;
+				a = a1;
 				for (L i = 0; i < instance.n; i++) 
-					potent[i] = deltaAlpha[i] - a * search_direction[i];
+					deltaAlpha[i] = deltaAlpha[i] - 1.0 * search_direction[i];
 				break;
 			}
 			a0 = a1;
