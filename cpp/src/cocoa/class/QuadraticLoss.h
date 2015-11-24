@@ -202,15 +202,14 @@ public:
 			}
 
 			if (a1 >= (1 - 1e-4) * amax){
-				a = a1;
-				cblas_dcopy(instance.n, &potent[0], 1, &deltaAlpha[0], 1);
+				a = 1.0;
+				for (L i = 0; i < instance.n; i++) 
+					potent[i] = deltaAlpha[i] - a * search_direction[i];
 				break;
 			}
 			a0 = a1;
 			a1 = 0.5 * (a1 + amax);
 			iter++;
-			if(iter > 50)
-				break;
 		}
 	}
 
