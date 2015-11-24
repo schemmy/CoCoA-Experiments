@@ -157,7 +157,7 @@ public:
 
 		D a0 = 0;
 		D a1 = 1.0;
-		D amax = 10.0;
+		D amax = 1.0;
 		D c1ls = 0.01;    // parameter for sufficient decrease condition
 		D c2ls = 0.2;     // parameter for curvature condition
 		int iter = 0;
