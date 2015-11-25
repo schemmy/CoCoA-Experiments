@@ -326,7 +326,7 @@ public:
 				// vectormatrix_b(deltaAlpha, instance.A_csr_values, instance.A_csr_col_idx, instance.A_csr_row_ptr,
 		  //             instance.b, 1.0, instance.n, gradient_temp2);
 				// matrixvector(instance.A_csr_values, instance.A_csr_col_idx, instance.A_csr_row_ptr,
-		  //          	gradient_temp2, instance.n, gradient_temp3);
+		  //          	gradient_temp2, instance.n, gradient_temp3);//
 
 				for (L iter_counter = 0; iter_counter < distributedSettings.iterationsPerThread; iter_counter++) {
 
@@ -348,7 +348,7 @@ public:
 		               instance.b, 1.0, instance.n, Ad);
 					matrixvector(instance.A_csr_values, instance.A_csr_col_idx, instance.A_csr_row_ptr, AdeltaAlpha, instance.n, AAdeltaAlpha);
 					matrixvector(instance.A_csr_values, instance.A_csr_col_idx, instance.A_csr_row_ptr, Ad, instance.n, AAd);
-					
+
 					this->wolfe_linesearch(instance, deltaAlpha, search_direction, gradient_temp1, 
 						AdeltaAlpha, Ad, AAdeltaAlpha, AAd, w, dualobj, stepsize);
 					//stepsize =  (old_deltaAlpha[0] - deltaAlpha[0])/search_direction[0];
