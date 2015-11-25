@@ -302,6 +302,16 @@ public:
 		std::vector < D > oneoversy(limit_BFGS);
 		D stepsize;
 		//distributedSettings.iters_communicate_count = 3;
+		std::vector<D> gradient_temp1(instance.n);
+		std::vector<D> gradient_temp2(instance.m);
+		std::vector<D> gradient_temp3(instance.n);
+
+		std::vector<D> AdeltaAlpha(instance.m);
+		std::vector<D> Ad(instance.m);
+		std::vector<D> AAdeltaAlpha(instance.n);
+		std::vector<D> AAd(instance.n);
+		D temp = 1.0 / instance.total_n / instance.lambda;
+	
 		for (unsigned int t = 0; t < distributedSettings.iters_communicate_count; t++) {
 			start = gettime_();
 
@@ -309,22 +319,44 @@ public:
 
 				cblas_set_to_zero(deltaW);
 				cblas_set_to_zero(deltaAlpha);
+				cblas_set_to_zero(gradient_temp3);
 				this->compute_subproproblem_obj(instance, deltaAlpha, w, dualobj);
 				stepsize = 0.001 * instance.n;
+				matrixvector(instance.A_csr_values, instance.A_csr_col_idx, instance.A_csr_row_ptr, w, instance.n, gradient_temp1);
+				// vectormatrix_b(deltaAlpha, instance.A_csr_values, instance.A_csr_col_idx, instance.A_csr_row_ptr,
+		  //             instance.b, 1.0, instance.n, gradient_temp2);
+				// matrixvector(instance.A_csr_values, instance.A_csr_col_idx, instance.A_csr_row_ptr,
+		  //          	gradient_temp2, instance.n, gradient_temp3);
 
 				for (L iter_counter = 0; iter_counter < distributedSettings.iterationsPerThread; iter_counter++) {
 
-					this->compute_subproproblem_gradient(instance, gradient, deltaAlpha, w);
+						//cout<<gradient_temp3[0]-gradient_temp4[0]<<endl;	
+					for (L i = 0; i < instance.n; i++) {
+						gradient[i] = 1.0 / instance.total_n * ( gradient_temp1[i] * instance.b[i] + instance.x[i] - instance.b[i]
+						              + 1.0 * instance.penalty * temp * gradient_temp3[i] * instance.b[i] + deltaAlpha[i] );
+					}
+					//this->compute_subproproblem_gradient(instance, gradient, deltaAlpha, w);
+
 					this->LBFGS_update(instance, search_direction, old_grad, sk, rk, gradient, oneoversy, iter_counter,
 					                   limit_BFGS, flag_BFGS);
 					cblas_dcopy(instance.n, &deltaAlpha[0], 1, &old_deltaAlpha[0], 1);
 					cblas_dcopy(instance.n, &gradient[0], 1, &old_grad[0], 1);
 
-					this->wolfe_linesearch(instance, deltaAlpha, search_direction, w, dualobj, stepsize);
+					vectormatrix_b(deltaAlpha, instance.A_csr_values, instance.A_csr_col_idx, instance.A_csr_row_ptr,
+		               instance.b, 1.0, instance.n, AdeltaAlpha);
+					vectormatrix_b(search_direction, instance.A_csr_values, instance.A_csr_col_idx, instance.A_csr_row_ptr,
+		               instance.b, 1.0, instance.n, Ad);
+					matrixvector(instance.A_csr_values, instance.A_csr_col_idx, instance.A_csr_row_ptr, AdeltaAlpha, instance.n, AAdeltaAlpha);
+					matrixvector(instance.A_csr_values, instance.A_csr_col_idx, instance.A_csr_row_ptr, Ad, instance.n, AAd);
+					
+					this->wolfe_linesearch(instance, deltaAlpha, search_direction, gradient_temp1, 
+						AdeltaAlpha, Ad, AAdeltaAlpha, AAd, w, dualobj, stepsize);
+					//stepsize =  (old_deltaAlpha[0] - deltaAlpha[0])/search_direction[0];
 //cout<<stepsize<<endl;
-					for (L idx = 0; idx < instance.n; idx++)
+					for (L idx = 0; idx < instance.n; idx++){
 						sk[instance.n * flag_BFGS + idx] = deltaAlpha[idx] - old_deltaAlpha[idx];
-					//cout<<deltaAlpha[11] - old_deltaAlpha[11]<<"      ";
+						gradient_temp3[idx] = AAdeltaAlpha[idx] - stepsize * AAd[idx];
+					}
 
 					flag_BFGS++;
 					if (flag_BFGS == limit_BFGS)
@@ -556,7 +588,7 @@ public:
 
 				double a = 0.001 * instance.n;
 				this->compute_subproproblem_gradient(instance, gradient, deltaAlpha, w);
-				this->wolfe_linesearch(instance, deltaAlpha, gradient, w, dualobj, a);
+				this->backtrack_linesearch(instance, deltaAlpha, gradient, w, dualobj, a);
 
 				cblas_dcopy(instance.n, &deltaAlpha[0], 1, &sk[0], 1);
 				cblas_dcopy(instance.n, &gradient[0], 1, &gradient_old[0], 1);
