@@ -576,6 +576,14 @@ public:
 		std::vector < D > gradient_old(instance.n);
 		std::vector < D > yk(instance.n);
 		std::vector < D > sk(instance.n);
+		std::vector<D> gradient_temp1(instance.n);
+		std::vector<D> gradient_temp2(instance.m);
+		std::vector<D> gradient_temp3(instance.n);
+
+		std::vector<D> AdeltaAlpha(instance.m);
+		std::vector<D> Ad(instance.m);
+		std::vector<D> AAdeltaAlpha(instance.n);
+		std::vector<D> AAd(instance.n);
 
 
 		for (unsigned int t = 0; t < distributedSettings.iters_communicate_count; t++) {
@@ -586,9 +594,15 @@ public:
 				cblas_set_to_zero(deltaW);
 				cblas_set_to_zero(deltaAlpha);
 
+				matrixvector(instance.A_csr_values, instance.A_csr_col_idx, instance.A_csr_row_ptr, w, instance.n, gradient_temp1);
 				double a = 1.0;
 				this->compute_subproproblem_gradient(instance, gradient, deltaAlpha, w);
-				this->backtrack_linesearch(instance, deltaAlpha, gradient, w, dualobj, a);
+				//this->backtrack_linesearch(instance, deltaAlpha, gradient, w, dualobj, a);
+				vectormatrix_b(gradient, instance.A_csr_values, instance.A_csr_col_idx, instance.A_csr_row_ptr,
+		               instance.b, 1.0, instance.n, Ad);
+				matrixvector(instance.A_csr_values, instance.A_csr_col_idx, instance.A_csr_row_ptr, Ad, instance.n, AAd);
+				this->wolfe_linesearch(instance, deltaAlpha, gradient, gradient_temp1, 
+						AdeltaAlpha, Ad, AAdeltaAlpha, AAd, w, dualobj, a);
 
 				cblas_dcopy(instance.n, &deltaAlpha[0], 1, &sk[0], 1);
 				cblas_dcopy(instance.n, &gradient[0], 1, &gradient_old[0], 1);
