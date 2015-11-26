@@ -586,7 +586,7 @@ public:
 				cblas_set_to_zero(deltaW);
 				cblas_set_to_zero(deltaAlpha);
 
-				double a = 0.001 * instance.n;
+				double a = 1.0;
 				this->compute_subproproblem_gradient(instance, gradient, deltaAlpha, w);
 				this->backtrack_linesearch(instance, deltaAlpha, gradient, w, dualobj, a);
 
