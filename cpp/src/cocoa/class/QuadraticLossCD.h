@@ -668,7 +668,7 @@ public:
 		double elapsedTime = 0;
 		double t0 = 1.0;
 		double t1 = 1.0;
-		double Lip = 1.0 / instance.n ; // initial Lip constant estimate
+		double Lip = 1000.0 / instance.n ; // initial Lip constant estimate
 		//double Lip = 0.001 / instance.n ; // initial Lip constant estimate
 		double eta = 1.5;
 
