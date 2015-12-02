@@ -84,7 +84,7 @@ int main(int argc, char *argv[]) {
 
 	instance.oneOverLambdaN = 1 / (0.0 + instance.total_n * instance.lambda);
 
-	sigmaSet = [1,2,3,4,5,6,7,8,9,10,12,14,16,24,32,64];
+	int sigmaSet[16] = [1,2,3,4,5,6,7,8,9,10,12,14,16,24,32,64];
 	for (int idE = 0; idE < 16; idE++){
 
 	cblas_set_to_zero(instance.x);
