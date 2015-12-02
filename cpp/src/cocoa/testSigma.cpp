@@ -84,7 +84,7 @@ int main(int argc, char *argv[]) {
 
 	instance.oneOverLambdaN = 1 / (0.0 + instance.total_n * instance.lambda);
 
-	for (int idE = 5; idE < 7; idE++){
+	for (int idE = 1; idE < 17; idE++){
 
 	cblas_set_to_zero(instance.x);
 	cblas_set_to_zero(w);
