@@ -84,7 +84,8 @@ int main(int argc, char *argv[]) {
 
 	instance.oneOverLambdaN = 1 / (0.0 + instance.total_n * instance.lambda);
 
-	for (int idE = 1; idE < 17; idE++){
+	sigmaSet = [1,2,3,4,5,6,7,8,9,10,12,14,16,24,32,64];
+	for (int idE = 0; idE < 16; idE++){
 
 	cblas_set_to_zero(instance.x);
 	cblas_set_to_zero(w);
@@ -95,7 +96,7 @@ int main(int argc, char *argv[]) {
 	double gamma;
 	if (distributedSettings.APPROX) {
 		gamma = 1;
-		instance.penalty = idE + 0.0;
+		instance.penalty = sigmaSet[idE] + 0.0;
 	} else {
 		gamma = 1 / (world.size() + 0.0);
 		instance.penalty = 1;
@@ -145,7 +146,7 @@ int main(int argc, char *argv[]) {
 			<< distributedSettings.iters_communicate_count << "_"
 			<< distributedSettings.iterationsPerThread << "_"
 			<< instance.lambda << "_"
-			<< distributedSettings.APPROX << "_" << idE
+			<< distributedSettings.APPROX << "_" << sigmaSet[idE]
 			<< ".log";
 	std::ofstream logFile;
 	if (ctx.settings.verbose) {
