@@ -134,7 +134,7 @@ int main(int argc, char *argv[]) {
 	// 		<< distributedSettings.iterationsPerThread << "_"
 	// 		<< instance.experimentName << "_" << distributedSettings.APPROX
 	// 		<< "_" << instance.theta << "_.log";	
-	ss << ctx.matrixAFile << "_" 
+	ss << "rcvtest_" 
 			<< distributedSettings.lossFunction << "_"
 			<< localsolver << "_"
 			<< distributedSettings.iters_communicate_count << "_"
