@@ -232,7 +232,7 @@ public:
 		for (unsigned int t = 0; t < distributedSettings.iters_communicate_count; t++) {
 			start = gettime_();
 			for (int jj = 0; jj < distributedSettings.iters_bulkIterations_count; jj++) {
-				a = 0.01 * instance.n;
+				a = 1.0 * instance.n;
 				dualobj = 0;
 				cblas_set_to_zero(deltaW);
 				cblas_set_to_zero(deltaAlpha);
@@ -668,7 +668,7 @@ public:
 		double elapsedTime = 0;
 		double t0 = 1.0;
 		double t1 = 1.0;
-		double Lip = 1000.0 / instance.n ; // initial Lip constant estimate
+		double Lip = 10.0 / instance.n ; // initial Lip constant estimate
 		//double Lip = 0.001 / instance.n ; // initial Lip constant estimate
 		double eta = 1.5;
 
