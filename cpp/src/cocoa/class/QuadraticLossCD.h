@@ -232,7 +232,7 @@ public:
 		for (unsigned int t = 0; t < distributedSettings.iters_communicate_count; t++) {
 			start = gettime_();
 			for (int jj = 0; jj < distributedSettings.iters_bulkIterations_count; jj++) {
-				a = 1.0 * instance.n;
+				a = 0.001 * instance.n;
 				dualobj = 0;
 				cblas_set_to_zero(deltaW);
 				cblas_set_to_zero(deltaAlpha);
@@ -691,7 +691,7 @@ public:
 
 				t1 = 0.5 * (1.0 + sqrt(1.0 + t0 * t0 * 4.0));
 				double tmpFrac = (t0 - 1) / t1;
-				Lip = 50.0 / instance.n;
+				Lip = 100.0 / instance.n;
 				int iter = 0;
 				while (1) {
 					Lip = Lip * eta;
