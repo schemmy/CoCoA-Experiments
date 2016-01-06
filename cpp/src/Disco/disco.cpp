@@ -56,8 +56,8 @@ int main(int argc, char *argv[]) {
 	instance.lambda = ctx.lambda;
 
 	double rho = 1.0 / instance.n;
-	double mu = 0.1;
-	unsigned int batchsize = floor(instance.n / 10.0);
+	double mu = 0.0001;
+	unsigned int batchsize = 100;//floor(instance.n / 4.0);
 
 	std::vector<double> w(instance.m);
 	//for (unsigned int i = 0; i < instance.m; i++)	w[i] = 0.1*rand() / (RAND_MAX + 0.0);

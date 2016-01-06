@@ -348,7 +348,7 @@ void distributed_PCG_Logistic_TEST(std::vector<double> &w, ProblemData<unsigned 
 	std::vector<double> P(instance.m * instance.m);
 	std::vector<double> objective(2);
 	std::vector<double> objective_world(2);
-	double diag = (instance.lambda + mu) * batchSize;
+	double diag = instance.lambda + mu;
 
 	computeObjectiveLogistic(w, instance, objective[0], world.size());
 	vall_reduce(world, objective, objective_world);

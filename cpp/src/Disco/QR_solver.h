@@ -228,8 +228,10 @@ void WoodburySolverForDiscoLogistic(ProblemData<unsigned int, double> &instance,
 		}
 	}
 
-	CGSolver(woodburyH, p, woodburyVTy, woodburyHVTy);
-	
+	//CGSolver(woodburyH, p, woodburyVTy_World, woodburyHVTy);
+	//gaussEliminationSolver(woodburyH, p, woodburyVTy, woodburyHVTy);
+	QRGramSchmidtSolver(woodburyH, p, woodburyVTy, woodburyHVTy);
+
 	for (unsigned int idx = 0; idx < p; idx++){
 
 		for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++){
@@ -265,7 +267,10 @@ void WoodburySolverForOcsidLogistic(ProblemData<unsigned int, double> &preConDat
 	}
 	vall_reduce(world, woodburyVTy, woodburyVTy_World);
 
-	CGSolver(woodburyH, p, woodburyVTy_World, woodburyHVTy);
+
+	//CGSolver(woodburyH, p, woodburyVTy_World, woodburyHVTy);
+	//gaussEliminationSolver(woodburyH, p, woodburyVTy, woodburyHVTy);
+	QRGramSchmidtSolver(woodburyH, p, woodburyVTy, woodburyHVTy);
 	
 	for (unsigned int idx = 0; idx < p; idx++){
 		for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++){

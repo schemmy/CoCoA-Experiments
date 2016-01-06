@@ -40,7 +40,7 @@ int main(int argc, char *argv[]) {
 	ProblemData<unsigned int, double> instance;
 	ProblemData<unsigned int, double> preConData;
 
-	unsigned int sizePreCon = 400;
+	unsigned int sizePreCon = 100;
 
 	//ProblemData<unsigned int, double> newInstance;
 	//readWholeData(ctx.matrixAFile, instance, false);
@@ -48,7 +48,7 @@ int main(int argc, char *argv[]) {
 	readPartDataForPreCondi(ctx.matrixAFile, preConData, sizePreCon, false);
 	unsigned int finalM;
 	double rho = 1.0 / sqrt(instance.n);
-	double mu = 0.1;
+	double mu = 0.0001;
 	instance.total_n = instance.n;
 	//partitionByFeature(instance, newInstance, world.size(), world.rank());
 	instance.theta = ctx.tmp;
