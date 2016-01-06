@@ -3,7 +3,7 @@ from math import ceil, floor
 
 def main():
     exp = [4]
-    name = 'rcv'
+    name = 'w1a'
     for ee in range(1):
         nPart = exp[ee]
         nnlines = 0

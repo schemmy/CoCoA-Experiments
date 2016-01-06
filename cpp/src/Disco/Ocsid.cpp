@@ -13,8 +13,9 @@
 #include "readWholeData.h"
 #include "../solver/distributed/distributed_essentials.h"
 
-#include "ocsidHelperQuadratic.h"
-#include "ocsidHelperLogistic.h"
+#include "ocsidHelper.h"
+//#include "ocsidHelperQuadratic.h"
+//#include "ocsidHelperLogistic.h"
 //#ifdef MATLAB
 //
 //#include "class/QuadraticLossLbfgs.h"
@@ -39,7 +40,7 @@ int main(int argc, char *argv[]) {
 	ProblemData<unsigned int, double> instance;
 	ProblemData<unsigned int, double> preConData;
 
-	unsigned int sizePreCon = 0;
+	unsigned int sizePreCon = 1600;
 	double rho = 1.0 / sqrt(instance.n);
 	double mu = 0.001;
 	//ProblemData<unsigned int, double> newInstance;
@@ -60,7 +61,7 @@ int main(int argc, char *argv[]) {
 	double deltak = 0.0;
 
 	std::stringstream ss;
-	ss << ctx.matrixAFile << "_2_" << world.size() << "_" << sizePreCon << ".log";
+	ss << ctx.matrixAFile << "_2_" << world.size() << "_" << preConData.n << ".log";
 	std::ofstream logFile;
 	logFile.open(ss.str().c_str());
 	
@@ -74,9 +75,24 @@ int main(int argc, char *argv[]) {
 	// }
 	// computeInitialWQuadratic(w, instance, rho, world.rank());
 	
-	//distributed_PCGByD_Quadratic(w, instance, preConData, mu, vk, deltak, world, world.size(), world.rank(), logFile);
-	distributed_PCGByD_Logistic(w, instance, preConData, mu, vk, deltak, world, world.size(), world.rank(), logFile);
+	int loss = distributedSettings.lossFunction;
 
+	switch (loss) {
+	case 0:
+		distributed_PCGByD(w, instance, preConData, mu, vk, deltak, world, world.size(), world.rank(), logFile);
+		break;	
+	case 1:
+		distributed_PCGByD_SparseP(w, instance, preConData, mu, vk, deltak, world, world.size(), world.rank(), logFile);
+		break;
+	case 2:
+		//distributed_PCGByD_Quadratic(w, instance, preConData, mu, vk, deltak, world, world.size(), world.rank(), logFile);
+		break;
+	case 3:
+		//distributed_PCGByD_Logistic(w, instance, preConData, mu, vk, deltak, world, world.size(), world.rank(), logFile);
+		break;	
+	default:
+		break;
+	}	
 	//}
 	logFile.close();
 	MPI::Finalize();

@@ -117,6 +117,33 @@ void computeLocalHessianTimesAU(std::vector<double> &w, std::vector<double> &u, 
 }
 
 
+void computeHessianTimesU(std::vector<double> &w, std::vector<double> &u, 
+						  std::vector<double> &AuLocal, std::vector<double> &Au, std::vector<double> &HuLocal,
+                          ProblemData<unsigned int, double> &instance, boost::mpi::communicator &world) {
+
+	cblas_set_to_zero(HuLocal);
+	cblas_set_to_zero(AuLocal);
+	cblas_set_to_zero(Au);
+
+	for (unsigned int idx = 0; idx < instance.n; idx++) {
+		for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
+			AuLocal[idx] += instance.A_csr_values[i] * instance.b[idx] * u[instance.A_csr_col_idx[i]];
+		}
+	}
+	
+	vall_reduce(world, AuLocal, Au);
+
+	for (unsigned int idx = 0; idx < instance.n; idx++) {
+		for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++){
+			HuLocal[instance.A_csr_col_idx[i]] += instance.A_csr_values[i] * instance.b[idx] * Au[idx] / instance.n;
+		}
+	}
+
+	for (unsigned int i = 0; i < instance.m; i++)
+		HuLocal[i] += instance.lambda * u[i];
+
+}
+
 
 void distributed_PCGByD_SparseP(std::vector<double> &w, ProblemData<unsigned int, double> &instance,
                                 ProblemData<unsigned int, double> &preConData, double &mu,
@@ -159,7 +186,8 @@ void distributed_PCGByD_SparseP(std::vector<double> &w, ProblemData<unsigned int
 	std::vector<double> constantLocal(8);
 	std::vector<double> constantSum(8);
 	std::vector<unsigned int> randPick(batchSize);
-	std::vector<double> woodburyU(instance.m * batchSize);
+	std::vector<double> woodburyH(batchSize * batchSize);
+	double diag = (instance.lambda + mu) * batchSize;
 
 	flag = 1;
 
@@ -171,6 +199,8 @@ void distributed_PCGByD_SparseP(std::vector<double> &w, ProblemData<unsigned int
 	grad_norm = cblas_l2_norm(instance.m, &local_gradient[0], 1);
 	constantLocal[6] = grad_norm;
 	vall_reduce(world, constantLocal, constantSum);
+
+	geneWoodburyH(preConData, batchSize, woodburyH, diag);
 
 	if (rank == 0) {
 		difference = abs(obj - objPre) / obj;
@@ -201,26 +231,29 @@ void distributed_PCGByD_SparseP(std::vector<double> &w, ProblemData<unsigned int
 
 		cblas_dcopy(instance.m, &local_gradient[0], 1, &r[0], 1);
 
-		double diag = instance.lambda + mu;
 		// s= p^-1 r
-		//WoodburySolver(preConData, instance, instance.m, batchSize, r, s, diag, world);
-		ifNoPreconditioning(instance.m, r, s);
+		WoodburySolverForOcsid(preConData, instance, instance.m, batchSize, woodburyH, r, s, diag, world);
+		cblas_dscal(instance.m, batchSize, &s[0], 1);
+		//ifNoPreconditioning(instance.m, r, s);
 
 		cblas_dcopy(instance.m, &s[0], 1, &u[0], 1);
 		int inner_iter = 0;
 		// can only use this type of iteration now. Any stop or break in one node will interrupt
 		// the others, there has to be a reduceall operation somehow after that.
 		while (1) { //		while (flag != 0)
-			computeDataMatrixATimesU(w, u, Au_local, instance);
-			vall_reduce(world, Au_local, Au);
-			computeLocalHessianTimesAU(w, u, Au, Hu_local, instance);
+			//computeDataMatrixATimesU(w, u, Au_local, instance);
+			//vall_reduce(world, Au_local, Au);
+			//computeLocalHessianTimesAU(w, u, Au, Hu_local, instance);
+			computeHessianTimesU(w, u, Au_local, Au, Hu_local, instance, world);
 
 			double rsLocal = cblas_ddot(instance.m, &r[0], 1, &s[0], 1);
 			double uHuLocal = cblas_ddot(instance.m, &u[0], 1, &Hu_local[0], 1);
 			constantLocal[0] = rsLocal;
 			constantLocal[1] = uHuLocal;
 			vall_reduce(world, constantLocal, constantSum);
-
+			if (constantSum[5] == 0) {
+				break; // stop if all the inner flag = 0.
+			}
 			alpha = constantSum[0] / constantSum[1];
 			cblas_daxpy(instance.m, alpha, &u[0], 1, &v[0], 1);
 			cblas_daxpy(instance.m, alpha, &Hu_local[0], 1, &Hv_local[0], 1);
@@ -228,8 +261,9 @@ void distributed_PCGByD_SparseP(std::vector<double> &w, ProblemData<unsigned int
 
 
 			//CGSolver(P, instance.m, r, s);
-			//WoodburySolver(preConData, instance, instance.m, batchSize, r, s, diag, world);
-			ifNoPreconditioning(instance.m, r, s);
+			WoodburySolverForOcsid(preConData, instance, instance.m, batchSize, woodburyH, r, s, diag, world);
+			cblas_dscal(instance.m, batchSize, &s[0], 1);
+			//ifNoPreconditioning(instance.m, r, s);
 
 			double rsNextLocal = cblas_ddot(instance.m, &r[0], 1, &s[0], 1);
 			constantLocal[2] = rsNextLocal;
@@ -240,10 +274,7 @@ void distributed_PCGByD_SparseP(std::vector<double> &w, ProblemData<unsigned int
 			cblas_daxpy(instance.m, 1.0, &s[0], 1, &u[0], 1);
 
 			double r_normLocal = cblas_l2_norm(instance.m, &r[0], 1);
-			inner_iter++;
-			if (constantSum[5] == 0) {
-				break; // stop if all the inner flag = 0.
-			}
+
 
 			if ( r_normLocal <= epsilon || inner_iter > 100) {			//	if (r_norm <= epsilon || inner_iter > 100)
 				cblas_dcopy(instance.m, &v[0], 1, &vk[0], 1);
@@ -254,6 +285,7 @@ void distributed_PCGByD_SparseP(std::vector<double> &w, ProblemData<unsigned int
 				innerflag = 0;
 				constantLocal[5] = innerflag;
 			}
+			inner_iter++;
 
 		}
 		vall_reduce(world, constantLocal, constantSum);
@@ -286,16 +318,13 @@ void distributed_PCGByD_SparseP(std::vector<double> &w, ProblemData<unsigned int
 
 
 
-void distributed_PCGByD(std::vector<double> &w, ProblemData<unsigned int, double> &instance, double &mu,
-                        std::vector<double> &vk, double &deltak, boost::mpi::communicator &world, int nPartition, int rank
-                        , std::ofstream &logFile) {
+void distributed_PCGByD(std::vector<double> &w, ProblemData<unsigned int, double> &instance,
+						ProblemData<unsigned int, double> &preConData, double &mu,
+                        std::vector<double> &vk, double &deltak, boost::mpi::communicator &world, 
+                        int nPartition, int rank, std::ofstream &logFile) {
 
-	// Compute Matrix P
-	// Broadcastw_k
 	int flag;
 	int innerflag;
-	//std::vector<int> flag(10);
-	//mpi::request reqs[1];
 
 	double difference;
 	double objPre;
@@ -309,8 +338,8 @@ void distributed_PCGByD(std::vector<double> &w, ProblemData<unsigned int, double
 	double obj;
 	double alpha = 0.0;
 	double beta = 0.0;
-
-	std::vector<double> P(instance.m * instance.m);
+	unsigned int batchSize = preConData.n;
+	std::vector<double> P(preConData.m * preConData.m);
 	std::vector<double> v(instance.m);
 	std::vector<double> s(instance.m);
 	std::vector<double> r(instance.m);
@@ -324,7 +353,10 @@ void distributed_PCGByD(std::vector<double> &w, ProblemData<unsigned int, double
 	std::vector<double> local_gradient(instance.m);
 	std::vector<double> constantLocal(8);
 	std::vector<double> constantSum(8);
+	//std::vector<double> woodburyH(batchSize * batchSize);
 
+	//double diag = (instance.lambda + mu) * batchSize;
+	//geneWoodburyH(preConData, batchSize, woodburyH, diag);
 
 	flag = 1;
 	constantLocal[6] = flag;
@@ -351,13 +383,11 @@ void distributed_PCGByD(std::vector<double> &w, ProblemData<unsigned int, double
 
 		cblas_dcopy(instance.m, &local_gradient[0], 1, &r[0], 1);
 
-		for (unsigned int idx1 = 0; idx1 < 100; idx1++) {
-			for (unsigned int idx2 = 0; idx2 < 100; idx2++) {
-				for (unsigned int i = instance.A_csr_row_ptr[idx1];	i < instance.A_csr_row_ptr[idx1 + 1]; i++) {
-					for (unsigned int j = instance.A_csr_row_ptr[idx2];	j < instance.A_csr_row_ptr[idx2 + 1]; j++) {
-						P[instance.m * instance.A_csr_col_idx[i] + instance.A_csr_col_idx[j]] +=
-						    instance.A_csr_values[i] * instance.b[idx1] * instance.b[idx2] * instance.A_csr_values[j] / instance.total_n;
-					}
+		for (unsigned int idx = 0; idx < batchSize; idx++) {
+			for (unsigned int i = preConData.A_csr_row_ptr[idx]; i < preConData.A_csr_row_ptr[idx + 1]; i++) {
+				for (unsigned int j = preConData.A_csr_row_ptr[idx]; j < preConData.A_csr_row_ptr[idx + 1]; j++) {
+					P[preConData.m * preConData.A_csr_col_idx[i] + preConData.A_csr_col_idx[j]] +=
+					    preConData.A_csr_values[i] * preConData.A_csr_values[j] / preConData.n;
 				}
 			}
 		}
@@ -374,9 +404,10 @@ void distributed_PCGByD(std::vector<double> &w, ProblemData<unsigned int, double
 		// can only use this type of iteration now. Any stop or break in one node will interrupt
 		// the others, there has to be a reduceall operation somehow after that.
 		while (1) { //		while (flag != 0)
-			computeDataMatrixATimesU(w, u, Au_local, instance);
-			vall_reduce(world, Au_local, Au);  //BUG is here!
-			computeLocalHessianTimesAU(w, u, Au, Hu_local, instance);
+			//computeDataMatrixATimesU(w, u, Au_local, instance);
+			//vall_reduce(world, Au_local, Au);  //BUG is here!
+			//computeLocalHessianTimesAU(w, u, Au, Hu_local, instance);
+			computeHessianTimesU(w, u, Au_local, Au, Hu_local, instance, world);
 
 			double rsLocal = cblas_ddot(instance.m, &r[0], 1, &s[0], 1);
 			double uHuLocal = cblas_ddot(instance.m, &u[0], 1, &Hu_local[0], 1);
@@ -401,7 +432,6 @@ void distributed_PCGByD(std::vector<double> &w, ProblemData<unsigned int, double
 			cblas_daxpy(instance.m, 1.0, &s[0], 1, &u[0], 1);
 
 			double r_normLocal = cblas_l2_norm(instance.m, &r[0], 1);
-			inner_iter++;
 			if (constantSum[5] == 0) {
 				break; // stop if all the inner flag = 0.
 			}
@@ -415,6 +445,7 @@ void distributed_PCGByD(std::vector<double> &w, ProblemData<unsigned int, double
 				constantLocal[5] = innerflag;
 				//vall_reduce(world, flag, flagWorld);
 			}
+			inner_iter++;
 
 		}
 		vall_reduce(world, constantLocal, constantSum);

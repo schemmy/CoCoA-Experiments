@@ -134,7 +134,7 @@ void CGSolver(std::vector<double> &A, int n,
 		cblas_daxpy(n, -1.0, &r[0], 1, &p[0], 1);
 		iter += 1;
 		//cout<<sqrt(nomNew)<<endl;
-		if (sqrt(nomNew) <= tol || iter > 100){
+		if (sqrt(nomNew) <= tol || iter > 1000){
 			//cout<< iter <<endl;
 			break;
 		}
@@ -145,41 +145,54 @@ void CGSolver(std::vector<double> &A, int n,
 
 
 
-void WoodburySolver(ProblemData<unsigned int, double> &preConData, ProblemData<unsigned int, double> &instance,
-	 unsigned int &n, unsigned int &batchSize, std::vector<double> &b, std::vector<double> &x, double &diag, 
-	 boost::mpi::communicator &world) {
-	
-	std::vector<double> woodburyH(batchSize * batchSize);
-	std::vector<double> woodburyVTy(batchSize);
-	std::vector<double> woodburyVTy_World(batchSize);
-	std::vector<double> woodburyHVTy(batchSize);
-	std::vector<double> woodburyZHVTy(n);
 
-	for (unsigned int idx1 = 0; idx1 < batchSize; idx1++){
-		for (unsigned int idx2 = 0; idx2 < batchSize; idx2++){
-			for (unsigned int i = preConData.A_csr_row_ptr[idx1]; i < preConData.A_csr_row_ptr[idx1 + 1]; i++){
-				for (unsigned int j = preConData.A_csr_row_ptr[idx2]; j < preConData.A_csr_row_ptr[idx2 + 1]; j++){
-					if (preConData.A_csr_col_idx[i] == preConData.A_csr_col_idx[j])
-						woodburyH[idx1 * batchSize + idx2] += preConData.A_csr_values[i] * preConData.A_csr_values[j]
-									* preConData.b[idx1] * preConData.b[idx2] / diag;
+void geneWoodburyH(ProblemData<unsigned int, double> &instance, 
+	unsigned int &p, std::vector<double> &woodburyH, double & diag){
+	
+	for (unsigned int idx1 = 0; idx1 < p; idx1++){
+		for (unsigned int idx2 = 0; idx2 < p; idx2++){
+			unsigned int i = instance.A_csr_row_ptr[idx1];
+			unsigned int j = instance.A_csr_row_ptr[idx2];
+			while (i < instance.A_csr_row_ptr[idx1+1] && j < instance.A_csr_row_ptr[idx2+1]){
+				if (instance.A_csr_col_idx[i] == instance.A_csr_col_idx[j]){
+					woodburyH[idx1 * p + idx2] += instance.A_csr_values[i] * instance.A_csr_values[j]
+							* instance.b[idx1] * instance.b[idx2] / diag;
+					i++;
+					j++;
 				}
+				else if (instance.A_csr_col_idx[i] < instance.A_csr_col_idx[j])
+					i++;
+				else
+					j++;
 			}
 		}
 	}
+	for (unsigned int idx = 0; idx < p; idx++)
+		woodburyH[idx * p + idx] += 1.0;
 
-	for (unsigned int idx = 0; idx < batchSize; idx++)
-		woodburyH[idx * batchSize + idx] += 1.0;
+}
 
-	for (unsigned int idx = 0; idx < batchSize; idx++){
+
+void WoodburySolverForOcsid(ProblemData<unsigned int, double> &preConData, ProblemData<unsigned int, double> &instance,
+	 unsigned int &n, unsigned int &p, std::vector<double> &woodburyH, std::vector<double> &b, std::vector<double> &x,
+	 double &diag, boost::mpi::communicator &world) {
+	
+	std::vector<double> woodburyVTy(p);
+	std::vector<double> woodburyVTy_World(p);
+	std::vector<double> woodburyHVTy(p);
+	std::vector<double> woodburyZHVTy(n);
+
+
+	for (unsigned int idx = 0; idx < p; idx++){
 		for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++){
-			woodburyVTy[idx] += instance.A_csr_values[i] * instance.b[idx] * b[instance.A_csr_col_idx[i]] * batchSize;
+			woodburyVTy[idx] += instance.A_csr_values[i] * instance.b[idx] * b[instance.A_csr_col_idx[i]] / diag;
 		}
 	}
 	vall_reduce(world, woodburyVTy, woodburyVTy_World);
 
-	CGSolver(woodburyH, batchSize, woodburyVTy_World, woodburyHVTy);
+	CGSolver(woodburyH, p, woodburyVTy_World, woodburyHVTy);
 	
-	for (unsigned int idx = 0; idx < batchSize; idx++){
+	for (unsigned int idx = 0; idx < p; idx++){
 		for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++){
 			woodburyZHVTy[instance.A_csr_col_idx[i]] += instance.A_csr_values[i] * instance.b[idx] 
 														/ diag * woodburyHVTy[idx];
@@ -191,46 +204,24 @@ void WoodburySolver(ProblemData<unsigned int, double> &preConData, ProblemData<u
 	}
 }
 
-
-
 void WoodburySolverForDisco(ProblemData<unsigned int, double> &instance,
-	 unsigned int &n, unsigned int &batchSize, std::vector<double> &b, std::vector<double> &x, double &diag) {
+	 unsigned int &n, unsigned int &p, std::vector<double> &woodburyH,
+	 std::vector<double> &b, std::vector<double> &x, double &diag) {
 	
-	std::vector<double> woodburyH(batchSize * batchSize);
-	std::vector<double> woodburyVTy(batchSize);
-	std::vector<double> woodburyHVTy(batchSize);
+	std::vector<double> woodburyVTy(p);
+	std::vector<double> woodburyHVTy(p);
 	std::vector<double> woodburyZHVTy(n);
 
-	for (unsigned int idx1 = 0; idx1 < batchSize; idx1++){
-		for (unsigned int idx2 = 0; idx2 < batchSize; idx2++){
-			unsigned int i = instance.A_csr_row_ptr[idx1];
-			unsigned int j = instance.A_csr_row_ptr[idx2];
-			while (i < instance.A_csr_row_ptr[idx1+1] && j < instance.A_csr_row_ptr[idx2+1]){
-				if (instance.A_csr_col_idx[i] == instance.A_csr_col_idx[j]){
-					woodburyH[idx1 * batchSize + idx2] += instance.A_csr_values[i] * instance.A_csr_values[j]
-					* instance.b[idx1] * instance.b[idx2] / diag;
-					i++;
-					j++;
-				}
-				else if (instance.A_csr_col_idx[i] < instance.A_csr_col_idx[j])
-					i++;
-				else
-					j++;
-			}
-		}
-	}
-	for (unsigned int idx = 0; idx < batchSize; idx++)
-		woodburyH[idx * batchSize + idx] += 1.0;
 
-	for (unsigned int idx = 0; idx < batchSize; idx++){
+	for (unsigned int idx = 0; idx < p; idx++){
 		for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++){
-			woodburyVTy[idx] += instance.A_csr_values[i] * instance.b[idx] * b[instance.A_csr_col_idx[i]] * batchSize / diag;
+			woodburyVTy[idx] += instance.A_csr_values[i] * instance.b[idx] * b[instance.A_csr_col_idx[i]] / diag;
 		}
 	}
 
-	CGSolver(woodburyH, batchSize, woodburyVTy, woodburyHVTy);
+	CGSolver(woodburyH, p, woodburyVTy, woodburyHVTy);
 	
-	for (unsigned int idx = 0; idx < batchSize; idx++){
+	for (unsigned int idx = 0; idx < p; idx++){
 		for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++){
 			woodburyZHVTy[instance.A_csr_col_idx[i]] += instance.A_csr_values[i] * instance.b[idx] 
 														/ diag * woodburyHVTy[idx];
@@ -240,6 +231,7 @@ void WoodburySolverForDisco(ProblemData<unsigned int, double> &instance,
 	for (unsigned int i = 0; i < n; i++){
 		x[i] = b[i] / diag - woodburyZHVTy[i];
 	}
+
 }
 
 void ifNoPreconditioning(int n, 
