@@ -16,9 +16,9 @@ void computeObjectiveQuadratic(std::vector<double> &w, ProblemData<unsigned int,
 
 		double w_x = 0.0;
 		for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++)
-			w_x += w[instance.A_csr_col_idx[i]] * instance.A_csr_values[i];
+			w_x += w[instance.A_csr_col_idx[i]] * instance.A_csr_values[i] * instance.b[idx];
 
-		obj += 0.5 * (w_x * instance.b[idx] - instance.b[idx]) * (w_x * instance.b[idx] - instance.b[idx]);
+		obj += 0.5 * (w_x  - instance.b[idx]) * (w_x - instance.b[idx]);
 	}
 
 	obj = 1.0 / instance.total_n * obj + 0.5 * instance.lambda * cblas_l2_norm(w.size(), &w[0], 1)

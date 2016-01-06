@@ -19,13 +19,12 @@ void computeObjectiveQuadratic(std::vector<double> &w, ProblemData<unsigned int,
 
 	for (unsigned int idx = 0; idx < instance.n; idx++) {
 		for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++)
-			w_x[idx] += w[instance.A_csr_col_idx[i]] * instance.A_csr_values[i];
+			w_x[idx] += w[instance.A_csr_col_idx[i]] * instance.A_csr_values[i] * instance.b[idx];
 	}
 	vall_reduce(world, w_x, w_x_world);
 
 	for (unsigned int idx = 0; idx < instance.n; idx++) {
-		obj += 0.5 * (w_x_world[idx] * instance.b[idx] - instance.b[idx]) *
-		       (w_x_world[idx] * instance.b[idx] - instance.b[idx]);
+		obj += 0.5 * (w_x_world[idx] - instance.b[idx]) * (w_x_world[idx] - instance.b[idx]);
 		//obj += log(1.0 + exp(-1.0 * instance.b[idx] * w_x));
 	}
 
