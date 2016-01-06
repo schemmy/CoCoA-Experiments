@@ -138,7 +138,7 @@ void distributed_PCG_Quadratic(std::vector<double> &w, ProblemData<unsigned int,
 	std::vector<double> woodburyH(batchSize * batchSize);
 	std::vector<double> objective(2);
 	std::vector<double> objective_world(2);
-	double diag = (instance.lambda + mu) * batchSize;
+	double diag = instance.lambda + mu;
 
 	computeObjectiveQuadratic(w, instance, objective[0], world.size());
 	vall_reduce(world, objective, objective_world);
@@ -184,7 +184,6 @@ void distributed_PCG_Quadratic(std::vector<double> &w, ProblemData<unsigned int,
 
 			// s= p^-1 r
 			WoodburySolverForDisco(instance, instance.m, batchSize, woodburyH, r, s, diag);
-			cblas_dscal(instance.m, batchSize, &s[0], 1);
 			cblas_dcopy(instance.m, &s[0], 1, &u[0], 1);
 
 		}
@@ -208,7 +207,6 @@ void distributed_PCG_Quadratic(std::vector<double> &w, ProblemData<unsigned int,
 
 				// solve linear system to get new s
 				WoodburySolverForDisco(instance, instance.m, batchSize, woodburyH, r, s, diag);
-				cblas_dscal(instance.m, batchSize, &s[0], 1);
 
 				double nom_new = cblas_ddot(instance.m, &r[0], 1, &s[0], 1);
 				beta = nom_new / nom;

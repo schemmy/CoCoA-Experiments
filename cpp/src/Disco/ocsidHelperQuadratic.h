@@ -87,35 +87,35 @@ void computeGradientQuadratic(std::vector<double> &w, std::vector<double> &Aw, s
 
 }
 
-void computeDataMatrixATimesU(std::vector<double> &w, std::vector<double> &u, std::vector<double> &Au,
-                              ProblemData<unsigned int, double> &instance) {
+
+
+
+void computeHessianTimesUQuadratic(std::vector<double> &w, std::vector<double> &u, 
+						  std::vector<double> &AuLocal, std::vector<double> &Au, std::vector<double> &HuLocal,
+                          ProblemData<unsigned int, double> &instance, boost::mpi::communicator &world) {
+
+	cblas_set_to_zero(HuLocal);
+	cblas_set_to_zero(AuLocal);
+	cblas_set_to_zero(Au);
 
 	for (unsigned int idx = 0; idx < instance.n; idx++) {
-		Au[idx] = 0;
-		for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++)
-			Au[idx] += instance.A_csr_values[i] * instance.b[idx] * u[instance.A_csr_col_idx[i]];
+		for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
+			AuLocal[idx] += instance.A_csr_values[i] * instance.b[idx] * u[instance.A_csr_col_idx[i]];
+		}
 	}
-
-
-}
-
-
-void computeLocalHessianTimesAUQuadratic(std::vector<double> &w, std::vector<double> &u, std::vector<double> &Au,
-                                std::vector<double> &Hu_local, ProblemData<unsigned int, double> &instance) {
-
-	cblas_set_to_zero(Hu_local);
+	
+	vall_reduce(world, AuLocal, Au);
 
 	for (unsigned int idx = 0; idx < instance.n; idx++) {
-		for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++)
-			Hu_local[instance.A_csr_col_idx[i]] += instance.A_csr_values[i] * instance.b[idx] * Au[idx] / instance.n;
+		for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++){
+			HuLocal[instance.A_csr_col_idx[i]] += instance.A_csr_values[i] * instance.b[idx] * Au[idx] / instance.n;
+		}
 	}
 
 	for (unsigned int i = 0; i < instance.m; i++)
-		Hu_local[i] += instance.lambda * u[i];
-
+		HuLocal[i] += instance.lambda * u[i];
 
 }
-
 
 
 void distributed_PCGByD_Quadratic(std::vector<double> &w, ProblemData<unsigned int, double> &instance,
@@ -144,7 +144,7 @@ void distributed_PCGByD_Quadratic(std::vector<double> &w, ProblemData<unsigned i
 	double beta = 0.0;
 	unsigned int batchSize = preConData.n;
 
-	//std::vector<double> P(instance.m);
+	std::vector<double> P(instance.m);
 	std::vector<double> v(instance.m);
 	std::vector<double> s(instance.m);
 	std::vector<double> r(instance.m);
@@ -159,18 +159,21 @@ void distributed_PCGByD_Quadratic(std::vector<double> &w, ProblemData<unsigned i
 	std::vector<double> constantLocal(8);
 	std::vector<double> constantSum(8);
 	std::vector<unsigned int> randPick(batchSize);
-	std::vector<double> woodburyU(instance.m * batchSize);
+	std::vector<double> woodburyH(batchSize * batchSize);
+	double diag = instance.lambda + mu;
 
 	flag = 1;
 
-	computeObjectiveQuadratic(w, instance, obj, world);
+	compute_objective(w, instance, obj, world);
 	computeDataMatrixATimesU(w, w, Aw_local, instance);
 
 	vall_reduce(world, Aw_local, Aw);
-	computeGradientQuadratic(w, Aw, local_gradient, instance);
+	compute_gradient(w, Aw, local_gradient, instance);
 	grad_norm = cblas_l2_norm(instance.m, &local_gradient[0], 1);
-	constantLocal[6] = grad_norm;
+	constantLocal[6] = grad_norm * grad_norm;
 	vall_reduce(world, constantLocal, constantSum);
+
+	geneWoodburyH(preConData, batchSize, woodburyH, diag);
 
 	if (rank == 0) {
 		difference = abs(obj - objPre) / obj;
@@ -192,37 +195,40 @@ void distributed_PCGByD_Quadratic(std::vector<double> &w, ProblemData<unsigned i
 		computeDataMatrixATimesU(w, w, Aw_local, instance);
 
 		vall_reduce(world, Aw_local, Aw);
-		computeGradientQuadratic(w, Aw, local_gradient, instance);
+		compute_gradient(w, Aw, local_gradient, instance);
 		grad_norm = cblas_l2_norm(instance.m, &local_gradient[0], 1);
-		constantLocal[6] = grad_norm;
+		constantLocal[6] = grad_norm * grad_norm;
 		vall_reduce(world, constantLocal, constantSum);
 		epsilon = 0.05 * grad_norm * sqrt(instance.lambda / 10.0);
 		//printf("In %ith iteration, node %i now has the norm of gradient: %E \n", iter, rank, grad_norm);
 
 		cblas_dcopy(instance.m, &local_gradient[0], 1, &r[0], 1);
 
-		double diag = instance.lambda + mu;
 		// s= p^-1 r
 		if (batchSize == 0)
 			ifNoPreconditioning(instance.m, r, s);
 		else
-			WoodburySolverForDisco(instance, instance.m, batchSize, r, s, diag);
+			WoodburySolverForOcsid(preConData, instance, instance.m, batchSize, woodburyH, r, s, diag, world);
+		//ifNoPreconditioning(instance.m, r, s);
 
 		cblas_dcopy(instance.m, &s[0], 1, &u[0], 1);
 		int inner_iter = 0;
 		// can only use this type of iteration now. Any stop or break in one node will interrupt
 		// the others, there has to be a reduceall operation somehow after that.
 		while (1) { //		while (flag != 0)
-			computeDataMatrixATimesU(w, u, Au_local, instance);
-			vall_reduce(world, Au_local, Au);
-			computeLocalHessianTimesAUQuadratic(w, u, Au, Hu_local, instance);
+			//computeDataMatrixATimesU(w, u, Au_local, instance);
+			//vall_reduce(world, Au_local, Au);
+			//computeLocalHessianTimesAU(w, u, Au, Hu_local, instance);
+			computeHessianTimesUQuadratic(w, u, Au_local, Au, Hu_local, instance, world);
 
 			double rsLocal = cblas_ddot(instance.m, &r[0], 1, &s[0], 1);
 			double uHuLocal = cblas_ddot(instance.m, &u[0], 1, &Hu_local[0], 1);
 			constantLocal[0] = rsLocal;
 			constantLocal[1] = uHuLocal;
 			vall_reduce(world, constantLocal, constantSum);
-
+			if (constantSum[5] == 0) {
+				break; // stop if all the inner flag = 0.
+			}
 			alpha = constantSum[0] / constantSum[1];
 			cblas_daxpy(instance.m, alpha, &u[0], 1, &v[0], 1);
 			cblas_daxpy(instance.m, alpha, &Hu_local[0], 1, &Hv_local[0], 1);
@@ -233,7 +239,8 @@ void distributed_PCGByD_Quadratic(std::vector<double> &w, ProblemData<unsigned i
 			if (batchSize == 0)
 				ifNoPreconditioning(instance.m, r, s);
 			else
-				WoodburySolverForDisco(instance, instance.m, batchSize, r, s, diag);
+				WoodburySolverForOcsid(preConData, instance, instance.m, batchSize, woodburyH, r, s, diag, world);
+			//ifNoPreconditioning(instance.m, r, s);
 
 			double rsNextLocal = cblas_ddot(instance.m, &r[0], 1, &s[0], 1);
 			constantLocal[2] = rsNextLocal;
@@ -244,10 +251,7 @@ void distributed_PCGByD_Quadratic(std::vector<double> &w, ProblemData<unsigned i
 			cblas_daxpy(instance.m, 1.0, &s[0], 1, &u[0], 1);
 
 			double r_normLocal = cblas_l2_norm(instance.m, &r[0], 1);
-			inner_iter++;
-			if (constantSum[5] == 0) {
-				break; // stop if all the inner flag = 0.
-			}
+
 
 			if ( r_normLocal <= epsilon || inner_iter > 100) {			//	if (r_norm <= epsilon || inner_iter > 100)
 				cblas_dcopy(instance.m, &v[0], 1, &vk[0], 1);
@@ -258,6 +262,7 @@ void distributed_PCGByD_Quadratic(std::vector<double> &w, ProblemData<unsigned i
 				innerflag = 0;
 				constantLocal[5] = innerflag;
 			}
+			inner_iter++;
 
 		}
 		vall_reduce(world, constantLocal, constantSum);
@@ -267,7 +272,7 @@ void distributed_PCGByD_Quadratic(std::vector<double> &w, ProblemData<unsigned i
 		finish = gettime_();
 		elapsedTime += finish - start;
 
-		computeObjectiveQuadratic(w, instance, obj, world);
+		compute_objective(w, instance, obj, world);
 
 		if (rank == 0) {
 			difference = abs(obj - objPre) / obj;
@@ -286,6 +291,7 @@ void distributed_PCGByD_Quadratic(std::vector<double> &w, ProblemData<unsigned i
 	}
 
 }
+
 
 
 
@@ -320,10 +326,10 @@ void computeInitialWQuadratic(std::vector<double> &w, ProblemData<unsigned int, 
 			double deltaAl = 0;
 			deltaAl = (1.0 * instance.b[idx] - alphaI - dotProduct * instance.b[idx]) * Li[idx];
 			deltaAlpha[idx] += deltaAl;
-			for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++)
+			for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++){
 				deltaW[instance.A_csr_col_idx[i]] += 1.0 / instance.n / rho * deltaAl
 				                                     * instance.A_csr_values[i] * instance.b[idx];
-
+			}
 		}
 		cblas_daxpy(instance.m, 1.0, &deltaW[0], 1, &w[0], 1);
 		cblas_daxpy(instance.n, 1.0, &deltaAlpha[0], 1, &alpha[0], 1);

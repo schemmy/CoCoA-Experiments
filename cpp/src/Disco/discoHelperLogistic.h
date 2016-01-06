@@ -100,26 +100,49 @@ void computeGradientLogistic(std::vector<double> &w, std::vector<double> &grad,
 }
 
 
+void computeAtimesW(ProblemData<unsigned int, double> &instance, std::vector<double> &w, std::vector<double> &wTx){
 
-void computeLocalHessianTimesAULogistic(std::vector<double> &w, std::vector<double> &u, std::vector<double> &Au,
-                                std::vector<double> &Hu_local, ProblemData<unsigned int, double> &instance) {
-
-	cblas_set_to_zero(Hu_local);
 	double temp;
-	double scalar;
 
 	for (unsigned int idx = 0; idx < instance.n; idx++) {
-		temp = exp(-Au[idx]);
-		scalar = temp / (temp + 1) / (temp + 1) * Au[idx];
-		for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++)
-			Hu_local[instance.A_csr_col_idx[i]] += instance.A_csr_values[i] * instance.b[idx] * scalar / instance.n;
+
+		temp = 0.0;
+		for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
+			temp += w[instance.A_csr_col_idx[i]] * instance.A_csr_values[i] * instance.b[idx];
+		}
+		wTx[idx] = temp;
+	}
+
+}
+
+void computeHessianTimesAULogistic(std::vector<double> &w, std::vector<double> &wTx, 
+						  std::vector<double> &u, std::vector<double> &Hu,
+                          ProblemData<unsigned int, double> &instance) {
+
+	double temp, scalar;
+	double r1, r2;
+	cblas_set_to_zero(Hu);
+
+	for (unsigned int idx = 0; idx < instance.n; idx++) {
+
+		temp = exp(-wTx[idx]);
+		scalar = temp / (temp + 1) / (temp + 1); 
+		for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
+			r1 = instance.A_csr_values[i];
+			r2 = instance.A_csr_col_idx[i];
+			for (unsigned int j = instance.A_csr_row_ptr[idx]; j < instance.A_csr_row_ptr[idx + 1]; j++) {
+				Hu[r2] += (r1 * instance.A_csr_values[j]) * scalar //* instance.b[idx] * instance.b[idx]
+				                        * u[instance.A_csr_col_idx[j]] / instance.n;
+			}
+		}
+
 	}
 
 	for (unsigned int i = 0; i < instance.m; i++)
-		Hu_local[i] += instance.lambda * u[i];
-
+		Hu[i] += instance.lambda * u[i];
 
 }
+
 
 void distributed_PCG_Logistic(std::vector<double> &w, ProblemData<unsigned int, double> &instance, double &mu,
                               std::vector<double> &vk, double &deltak, unsigned int batchSize,
@@ -145,6 +168,7 @@ void distributed_PCG_Logistic(std::vector<double> &w, ProblemData<unsigned int, 
 	std::vector<double> s(instance.m);
 	std::vector<double> r(instance.m);
 	std::vector<double> u(instance.m);
+	std::vector<double> wTx(instance.n);
 	std::vector<double> Au(instance.n);
 	std::vector<double> Hu_local(instance.m);
 	std::vector<double> Hu(instance.m);
@@ -152,19 +176,17 @@ void distributed_PCG_Logistic(std::vector<double> &w, ProblemData<unsigned int, 
 	std::vector<double> gradient(instance.m);
 	std::vector<double> local_gradient(instance.m);
 	std::vector<unsigned int> randPick(batchSize);
-	std::vector<double> woodburyU(instance.m * batchSize);
+	std::vector<double> woodburyH(batchSize * batchSize);
 	std::vector<double> objective(2);
 	std::vector<double> objective_world(2);
 	double diag = instance.lambda + mu;
 
 	computeObjectiveLogistic(w, instance, objective[0], world.size());
-	//boost::mpi::reduce(world, objective, objective_world, plus<double>(), 1);
 	vall_reduce(world, objective, objective_world);
-	//objective_world /= world.size();
-	//if (world.rank() == 1) 	cout  << objective_world << endl;
 	computeGradientLogistic(w, local_gradient, instance);
 	vall_reduce(world, local_gradient, gradient);
 	cblas_dscal(instance.m, 1.0 / world.size(), &gradient[0], 1);
+
 
 	if (world.rank() == 0) {
 		grad_norm = cblas_l2_norm(instance.m, &gradient[0], 1);
@@ -202,12 +224,14 @@ void distributed_PCG_Logistic(std::vector<double> &w, ProblemData<unsigned int, 
 
 			cblas_dcopy(instance.m, &gradient[0], 1, &r[0], 1);
 
+			computeAtimesW(instance, w, wTx);
+			geneWoodburyHLogistic(instance, batchSize, woodburyH, wTx, diag);
 			// s= p^-1 r
-			//CGSolver(P, instance.m, r, s);
 			if (batchSize == 0)
 				ifNoPreconditioning(instance.m, r, s);
-			else
-				WoodburySolverForDisco(instance, instance.m, batchSize, r, s, diag);
+			else		
+				WoodburySolverForDiscoLogistic(instance, instance.m, batchSize, woodburyH, r, s, wTx, diag);	
+			
 			cblas_dcopy(instance.m, &s[0], 1, &u[0], 1);
 
 		}
@@ -215,11 +239,9 @@ void distributed_PCG_Logistic(std::vector<double> &w, ProblemData<unsigned int, 
 		int inner_iter = 0;
 		while (flag[0] != 0) {
 			vbroadcast(world, u, 0);
-			computeDataMatrixATimesU(w, u, Au, instance);
-			computeLocalHessianTimesAULogistic(w, u, Au, Hu_local, instance);
-			//computeHessianTimesU(w, u, Hu_local, instance); //cout<<world.rank()<<"    "<<Hu_local[0]<<endl;
+			computeHessianTimesAULogistic(w, wTx, u, Hu_local, instance);
 			vall_reduce(world, Hu_local, Hu);
-			cblas_dscal(instance.m, 1.0 / world.size(), &Hu[0], 1); //for (unsigned int i = 0; i < instance.m; i++)	cout<<i<<"    "<<Hu_local[i]<<"  "<<Hu[i]<<endl;
+			cblas_dscal(instance.m, 1.0 / world.size(), &Hu[0], 1); 
 
 			if (world.rank() == 0) {
 				//cout<<"I will do this induvidually!!!!!!!!!!"<<endl;
@@ -235,9 +257,9 @@ void distributed_PCG_Logistic(std::vector<double> &w, ProblemData<unsigned int, 
 				//CGSolver(P, instance.m, r, s);
 				if (batchSize == 0)
 					ifNoPreconditioning(instance.m, r, s);
-				else
-					WoodburySolverForDisco(instance, instance.m, batchSize, r, s, diag);
-
+				else{				
+					WoodburySolverForDiscoLogistic(instance, instance.m, batchSize, woodburyH, r, s, wTx, diag);
+				}
 				double nom_new = cblas_ddot(instance.m, &r[0], 1, &s[0], 1);
 				beta = nom_new / nom;
 				cblas_dscal(instance.m, beta, &u[0], 1);
@@ -245,8 +267,7 @@ void distributed_PCG_Logistic(std::vector<double> &w, ProblemData<unsigned int, 
 
 				double r_norm = cblas_l2_norm(instance.m, &r[0], 1);
 				inner_iter++;
-
-				if (r_norm <= epsilon || inner_iter > 500) {
+				if (r_norm <= epsilon || inner_iter > 100) {
 					cblas_dcopy(instance.m, &v[0], 1, &vk[0], 1);
 					double vHv = cblas_ddot(instance.m, &vk[0], 1, &Hv[0], 1); //vHvT^(t) or vHvT^(t+1)
 					double vHu = cblas_ddot(instance.m, &vk[0], 1, &Hu[0], 1);
@@ -276,8 +297,8 @@ void distributed_PCG_Logistic(std::vector<double> &w, ProblemData<unsigned int, 
 		if (world.rank() == 0) {
 			difference = abs(objective_world[0] - objPre) / objective_world[0];
 			printf("%ith runs %i CG iterations, the norm of gradient is %E, the objective gap is %E\n",
-			       iter, 2 * inner_iter + 2, grad_norm, difference);
-			logFile << iter << "," << 2 * inner_iter + 2 << "," << elapsedTime << "," << grad_norm << "," << difference << endl;
+			       iter, inner_iter, grad_norm, difference);
+			logFile << iter << "," << inner_iter << "," << elapsedTime << "," << grad_norm << "," << difference << endl;
 		}
 		objPre = objective_world[0];
 
@@ -292,7 +313,181 @@ void distributed_PCG_Logistic(std::vector<double> &w, ProblemData<unsigned int, 
 
 
 
+void distributed_PCG_Logistic_TEST(std::vector<double> &w, ProblemData<unsigned int, double> &instance, double &mu,
+                              std::vector<double> &vk, double &deltak, unsigned int batchSize,
+                              boost::mpi::communicator &world, std::ofstream &logFile) {
 
+	// Compute Matrix P
+	// Broadcastw_k
+	std::vector<int> flag(2);
+	mpi::request reqs[1];
+	double difference;
+	double objPre;
+
+	double start = 0;
+	double finish = 0;
+	double elapsedTime = 0;
+	double grad_norm;
+
+	double epsilon;
+	double alpha = 0.0;
+	double beta = 0.0;
+
+	std::vector<double> v(instance.m);
+	std::vector<double> s(instance.m);
+	std::vector<double> r(instance.m);
+	std::vector<double> u(instance.m);
+	std::vector<double> wTx(instance.n);
+	std::vector<double> Au(instance.n);
+	std::vector<double> Hu_local(instance.m);
+	std::vector<double> Hu(instance.m);
+	std::vector<double> Hv(instance.m);
+	std::vector<double> gradient(instance.m);
+	std::vector<double> local_gradient(instance.m);
+	std::vector<unsigned int> randPick(batchSize);
+	std::vector<double> P(instance.m * instance.m);
+	std::vector<double> objective(2);
+	std::vector<double> objective_world(2);
+	double diag = (instance.lambda + mu) * batchSize;
+
+	computeObjectiveLogistic(w, instance, objective[0], world.size());
+	vall_reduce(world, objective, objective_world);
+	computeGradientLogistic(w, local_gradient, instance);
+	vall_reduce(world, local_gradient, gradient);
+	cblas_dscal(instance.m, 1.0 / world.size(), &gradient[0], 1);
+
+
+	if (world.rank() == 0) {
+		grad_norm = cblas_l2_norm(instance.m, &gradient[0], 1);
+		difference = abs(objective_world[0] - objPre) / objective_world[0];
+		printf("%ith runs %i CG iterations, the norm of gradient is %E, the objective gap is %E\n",
+		       0, 0, grad_norm, difference);
+		logFile << 0 << "," << 0 << "," << 0 << "," << grad_norm << "," << difference << endl;
+	}
+	objPre = objective_world[0];
+
+	for (unsigned int iter = 1; iter <= 100; iter++) {
+		// Compute local first derivative
+		start = gettime_();
+
+		flag[0] = 1;
+		flag[1] = 1;
+
+		cblas_set_to_zero(P);
+		cblas_set_to_zero(v);
+		cblas_set_to_zero(Hv);
+		vbroadcast(world, w, 0);
+//		cout<<iter<<endl;
+		computeGradientLogistic(w, local_gradient, instance);
+//		for (unsigned int i = 0; i < instance.m; i++)			local_gradient[i] = 0.1 * rand() / (RAND_MAX + 0.0);
+		// Aggregates to form f'(w_k)
+		vall_reduce(world, local_gradient, gradient);
+		cblas_dscal(instance.m, 1.0 / world.size(), &gradient[0], 1);
+
+		if (world.rank() == 0) {
+			grad_norm = cblas_l2_norm(instance.m, &gradient[0], 1);
+			epsilon = 0.05 * grad_norm * sqrt(instance.lambda / 10.0);
+			//printf("In %ith iteration, now has the norm of gradient: %E \n", iter, grad_norm);
+			if (grad_norm < 1e-8) {
+				flag[1] = 0;
+			}
+
+			cblas_dcopy(instance.m, &gradient[0], 1, &r[0], 1);
+
+			computeAtimesW(instance, w, wTx);
+			// s= p^-1 r
+
+			for (unsigned int idx = 0; idx < batchSize; idx++) {
+				double temp = exp(-wTx[idx]);
+				double scalar = temp / (temp + 1) / (temp + 1); 
+
+				for (unsigned int i = instance.A_csr_row_ptr[idx];	i < instance.A_csr_row_ptr[idx + 1]; i++) {
+					for (unsigned int j = instance.A_csr_row_ptr[idx];	j < instance.A_csr_row_ptr[idx + 1]; j++) {
+						P[instance.m * instance.A_csr_col_idx[i] + instance.A_csr_col_idx[j]] +=
+						    instance.A_csr_values[i] * instance.A_csr_values[j] / batchSize * scalar;
+					}
+				}
+			}
+			for (unsigned int i = 0; i < instance.m; i++) {
+				P[instance.m * i + i] += instance.lambda + mu;
+			}
+
+			CGSolver(P, instance.m, r, s);
+			
+			cblas_dcopy(instance.m, &s[0], 1, &u[0], 1);
+
+		}
+
+		int inner_iter = 0;
+		while (flag[0] != 0) {
+			vbroadcast(world, u, 0);
+			computeHessianTimesAULogistic(w, wTx, u, Hu_local, instance);
+			vall_reduce(world, Hu_local, Hu);
+			cblas_dscal(instance.m, 1.0 / world.size(), &Hu[0], 1); 
+
+			if (world.rank() == 0) {
+				//cout<<"I will do this induvidually!!!!!!!!!!"<<endl;
+				double nom = cblas_ddot(instance.m, &r[0], 1, &s[0], 1);
+				double denom = cblas_ddot(instance.m, &u[0], 1, &Hu[0], 1);
+				alpha = nom / denom;
+
+				cblas_daxpy(instance.m, alpha, &u[0], 1, &v[0], 1);
+				cblas_daxpy(instance.m, alpha, &Hu[0], 1, &Hv[0], 1);
+				cblas_daxpy(instance.m, -alpha, &Hu[0], 1, &r[0], 1);
+
+				// ? solve linear system to get new s
+				CGSolver(P, instance.m, r, s);
+
+				double nom_new = cblas_ddot(instance.m, &r[0], 1, &s[0], 1);
+				beta = nom_new / nom;
+				cblas_dscal(instance.m, beta, &u[0], 1);
+				cblas_daxpy(instance.m, 1.0, &s[0], 1, &u[0], 1);
+
+				double r_norm = cblas_l2_norm(instance.m, &r[0], 1);
+				inner_iter++;
+				if (r_norm <= epsilon || inner_iter > 100) {
+					cblas_dcopy(instance.m, &v[0], 1, &vk[0], 1);
+					double vHv = cblas_ddot(instance.m, &vk[0], 1, &Hv[0], 1); //vHvT^(t) or vHvT^(t+1)
+					double vHu = cblas_ddot(instance.m, &vk[0], 1, &Hu[0], 1);
+					deltak = sqrt(vHv + alpha * vHu);
+					flag[0] = 0;
+				}
+			}
+
+			vbroadcast(world, flag, 0);
+
+		}
+
+		if (world.rank() == 0) {
+			cblas_daxpy(instance.m, -1.0 / (1.0 + deltak), &vk[0], 1, &w[0], 1);
+		}
+
+		finish = gettime_();
+		elapsedTime += finish - start;
+		vbroadcast(world, w, 0);
+
+		computeObjectiveLogistic(w, instance, objective[0], world.size());
+		//boost::mpi::reduce(world, objective, objective_world, plus<double>(), 1);
+		vall_reduce(world, objective, objective_world);
+		//objective_world /= world.size();
+		//if (world.rank() == 1) 	cout  << objective_world << endl;
+
+		if (world.rank() == 0) {
+			difference = abs(objective_world[0] - objPre) / objective_world[0];
+			printf("%ith runs %i CG iterations, the norm of gradient is %E, the objective gap is %E\n",
+			       iter, inner_iter, grad_norm, difference);
+			logFile << iter << "," << 2 * inner_iter + 2 << "," << elapsedTime << "," << grad_norm << "," << difference << endl;
+		}
+		objPre = objective_world[0];
+
+		if (flag[1] == 0)
+			break;
+
+
+	}
+
+
+}
 // void computeInitialWLogistic(std::vector<double> &w, ProblemData<unsigned int, double> &instance, double &rho, int rank) {
 // 	std::vector<double> deltaW(instance.m);
 // 	std::vector<double> deltaAlpha(instance.n);

@@ -14,8 +14,8 @@
 #include "../solver/distributed/distributed_essentials.h"
 
 #include "ocsidHelper.h"
-//#include "ocsidHelperQuadratic.h"
-//#include "ocsidHelperLogistic.h"
+#include "ocsidHelperQuadratic.h"
+#include "ocsidHelperLogistic.h"
 //#ifdef MATLAB
 //
 //#include "class/QuadraticLossLbfgs.h"
@@ -40,14 +40,15 @@ int main(int argc, char *argv[]) {
 	ProblemData<unsigned int, double> instance;
 	ProblemData<unsigned int, double> preConData;
 
-	unsigned int sizePreCon = 1600;
-	double rho = 1.0 / sqrt(instance.n);
-	double mu = 0.001;
+	unsigned int sizePreCon = 400;
+
 	//ProblemData<unsigned int, double> newInstance;
 	//readWholeData(ctx.matrixAFile, instance, false);
 	loadDistributedByFeaturesSVMRowData(ctx.matrixAFile, world.rank(), world.size(), instance, false);
 	readPartDataForPreCondi(ctx.matrixAFile, preConData, sizePreCon, false);
 	unsigned int finalM;
+	double rho = 1.0 / sqrt(instance.n);
+	double mu = 0.1;
 	instance.total_n = instance.n;
 	//partitionByFeature(instance, newInstance, world.size(), world.rank());
 	instance.theta = ctx.tmp;
@@ -73,7 +74,9 @@ int main(int argc, char *argv[]) {
 	// 	printf("Computing initial point starts!\n");
 	// 	printf("\n");
 	// }
-	// computeInitialWQuadratic(w, instance, rho, world.rank());
+	
+
+	//computeInitialWQuadratic(w, instance, rho, world.rank());
 	
 	int loss = distributedSettings.lossFunction;
 
@@ -85,10 +88,10 @@ int main(int argc, char *argv[]) {
 		distributed_PCGByD_SparseP(w, instance, preConData, mu, vk, deltak, world, world.size(), world.rank(), logFile);
 		break;
 	case 2:
-		//distributed_PCGByD_Quadratic(w, instance, preConData, mu, vk, deltak, world, world.size(), world.rank(), logFile);
+		distributed_PCGByD_Quadratic(w, instance, preConData, mu, vk, deltak, world, world.size(), world.rank(), logFile);
 		break;
 	case 3:
-		//distributed_PCGByD_Logistic(w, instance, preConData, mu, vk, deltak, world, world.size(), world.rank(), logFile);
+		distributed_PCGByD_Logistic(w, instance, preConData, mu, vk, deltak, world, world.size(), world.rank(), logFile);
 		break;	
 	default:
 		break;

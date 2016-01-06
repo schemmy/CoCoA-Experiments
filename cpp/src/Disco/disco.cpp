@@ -14,7 +14,7 @@
 #include "../solver/distributed/distributed_essentials.h"
 
 #include "discoHelperQuadratic.h"
-//#include "discoHelperLogistic.h"
+#include "discoHelperLogistic.h"
 #include "discoHelper.h"
 //#ifdef MATLAB
 //
@@ -56,8 +56,8 @@ int main(int argc, char *argv[]) {
 	instance.lambda = ctx.lambda;
 
 	double rho = 1.0 / instance.n;
-	double mu = 0.00001;
-	unsigned int batchsize = floor(instance.n / 1.0);
+	double mu = 0.1;
+	unsigned int batchsize = floor(instance.n / 10.0);
 
 	std::vector<double> w(instance.m);
 	//for (unsigned int i = 0; i < instance.m; i++)	w[i] = 0.1*rand() / (RAND_MAX + 0.0);
@@ -72,9 +72,9 @@ int main(int argc, char *argv[]) {
 	
 	//compute_initial_w(w, instance, rho);
 	
-	// if (world.rank() == 0) {
-	// 	computeInitialWQudratic(w, instance, rho, world.rank());
-	// }
+	if (world.rank() == 0) {
+		computeInitialWQuadratic(w, instance, rho, world.rank());
+	}
 	
 	int loss = distributedSettings.lossFunction;
 
@@ -89,7 +89,7 @@ int main(int argc, char *argv[]) {
 		distributed_PCG_Quadratic(w, instance, mu, vk, deltak, batchsize, world, logFile);
 		break;
 	case 3:
-		//distributed_PCG_Logistic(w, instance, mu, vk, deltak, batchsize, world, logFile);
+		distributed_PCG_Logistic(w, instance, mu, vk, deltak, batchsize, world, logFile);
 		break;	
 	default:
 		break;
