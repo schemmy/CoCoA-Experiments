@@ -297,8 +297,8 @@ void distributed_PCG_Logistic(std::vector<double> &w, ProblemData<unsigned int, 
 		if (world.rank() == 0) {
 			difference = abs(objective_world[0] - objPre) / objective_world[0];
 			printf("%ith runs %i CG iterations, the norm of gradient is %E, the objective is %E\n",
-			       iter, inner_iter, grad_norm, objective_world);
-			logFile << iter << "," << inner_iter << "," << elapsedTime << "," << grad_norm << "," << objective_world << endl;
+			       iter, inner_iter, grad_norm, objective_world[0]);
+			logFile << iter << "," << inner_iter << "," << elapsedTime << "," << grad_norm << "," << objective_world[0] << endl;
 		}
 		objPre = objective_world[0];
 
