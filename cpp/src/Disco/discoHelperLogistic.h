@@ -123,7 +123,8 @@ void computeHessianTimesAULogistic(std::vector<double> &w, std::vector<double> &
 	double r1, r2;
 	cblas_set_to_zero(Hu);
 
-	for (unsigned int idx = 0; idx < instance.n; idx++) {
+
+	for (unsigned int idx = 0; idx < instance.n ; idx++) {
 
 		temp = exp(-wTx[idx]);
 		scalar = temp / (temp + 1) / (temp + 1); 
