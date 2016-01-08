@@ -87,7 +87,7 @@ void computeHessianTimesAUQuadratic(std::vector<double> &w, std::vector<double> 
 
 	cblas_set_to_zero(Hu);
 
-	for (unsigned int idx = 0; idx < instance.n; idx++) {
+	for (unsigned int idx = 0; idx < 100; idx++) {
 
 		for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
 			for (unsigned int j = instance.A_csr_row_ptr[idx]; j < instance.A_csr_row_ptr[idx + 1]; j++) {
@@ -242,9 +242,9 @@ void distributed_PCG_Quadratic(std::vector<double> &w, ProblemData<unsigned int,
 
 		if (world.rank() == 0) {
 			difference = abs(objective_world[0] - objPre) / objective_world[0];
-			printf("%ith runs %i CG iterations, the norm of gradient is %E, the objective gap is %E\n",
-			       iter, inner_iter, grad_norm, difference);
-			logFile << iter << "," << 2 * inner_iter + 2 << "," << elapsedTime << "," << grad_norm << "," << difference << endl;
+			printf("%ith runs %i CG iterations, the norm of gradient is %E, the objective is %E\n",
+			       iter, inner_iter, grad_norm, objective_world);
+			logFile << iter << "," << 2 * inner_iter + 2 << "," << elapsedTime << "," << grad_norm << "," << objective_world << endl;
 		}
 		objPre = objective_world[0];
 

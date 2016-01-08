@@ -275,9 +275,9 @@ void distributed_PCGByD_Quadratic(std::vector<double> &w, ProblemData<unsigned i
 
 		if (rank == 0) {
 			difference = abs(obj - objPre) / obj;
-			printf("%ith runs %i CG iterations, the norm of gradient is %E, the objective gap is %E\n",
-			       iter, inner_iter, constantSum[6], difference);
-			logFile << iter << "," << inner_iter << "," << elapsedTime << "," << constantSum[6] << "," << difference << endl;
+			printf("%ith runs %i CG iterations, the norm of gradient is %E, the objective is %E\n",
+			       iter, inner_iter, constantSum[6], objective_world);
+			logFile << iter << "," << inner_iter << "," << elapsedTime << "," << constantSum[6] << "," << objective_world << endl;
 		}
 		objPre = obj;
 
