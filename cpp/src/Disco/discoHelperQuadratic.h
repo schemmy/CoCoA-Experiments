@@ -87,7 +87,7 @@ void computeHessianTimesAUQuadratic(std::vector<double> &w, std::vector<double> 
 
 	cblas_set_to_zero(Hu);
 
-	for (unsigned int idx = 0; idx < 100; idx++) {
+	for (unsigned int idx = 0; idx < instance.n ; idx++) {
 
 		for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
 			for (unsigned int j = instance.A_csr_row_ptr[idx]; j < instance.A_csr_row_ptr[idx + 1]; j++) {
