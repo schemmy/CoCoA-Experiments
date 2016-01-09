@@ -30,42 +30,53 @@ int main(int argc, char *argv[]) {
 	if (world.rank() != 0) {
 		ctx.settings.verbose = false;
 	}
+
+	unsigned int batchsize = 100;
+
 	ProblemData<unsigned int, double> instance;
 	instance.theta = ctx.tmp;
-	loadDistributedSparseSVMRowData(ctx.matrixAFile, world.rank(), world.size(),
-	                                instance, false);
-	unsigned int finalM;
-
-	vall_reduce_maximum(world, &instance.m, &finalM, 1);
-	instance.m = finalM;
-	vall_reduce(world, &instance.n, &instance.total_n, 1);
-
 	instance.lambda = ctx.lambda;
+	loadDistributedSparseSVMRowData(ctx.matrixAFile, world.rank(), world.size(), instance, false);
 
-	double rho = 1.0 / instance.n;
-	double mu = 0.0001;
-	unsigned int batchsize = 100;
+	ProblemData<unsigned int, double> preConData;
+
+	int mode = 1;
+	if (mode == 1) {
+		unsigned int finalM;
+		vall_reduce_maximum(world, &instance.m, &finalM, 1);
+		instance.m = finalM;
+		vall_reduce(world, &instance.n, &instance.total_n, 1);
+	}
+	else if (mode == 2) {
+		readPartDataForPreCondi(ctx.matrixAFile, preConData, batchsize, false);
+		instance.total_n = instance.n;
+	}
+
 
 	std::vector<double> w(instance.m);
 	std::vector<double> vk(instance.m);
+	double rho = 1.0 / instance.n;
+	double mu = 0.0001;
 	double deltak = 0.0;
-	
+
 	std::stringstream ss;
 	ss << ctx.matrixAFile << "_1_" << world.size() << ".log";
 	std::ofstream logFile;
 	logFile.open(ss.str().c_str());
-	
-	//compute_initial_w(w, instance, rho);
+
 	int loss = distributedSettings.lossFunction;
 
-	LossFunction<unsigned int, double> *lf;
+	LossFunction<unsigned int, double> * lf;
 	lf = new QuadraticLoss<unsigned int, double>();
 	lf->init(instance);
 
-	if (world.rank() == 0) {
-		lf->computeInitialW(w, instance, rho, world.rank());
+
+	if (mode == 1) {
+		if (world.rank() == 0)
+			lf->computeInitialW(w, instance, rho, world.rank());
 	}
-	lf->distributed_PCG(w, instance, mu, vk, deltak, batchsize, world, logFile);
+
+	lf->distributed_PCGByD(w, instance, preConData, mu, vk, deltak, batchsize, world, logFile, mode);
 
 
 	logFile.close();

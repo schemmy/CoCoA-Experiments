@@ -46,8 +46,14 @@ public:
 	                             std::vector<double> &vk, double &deltak, unsigned int &batchSize,
 	                             boost::mpi::communicator &world, std::ofstream &logFile) {
 	}
-	
-	virtual void computeInitialW(std::vector<double> &w, ProblemData<unsigned int, double> &instance, double &rho, int rank) {
+
+	virtual void distributed_PCGByD(std::vector<double> &w, ProblemData<unsigned int, double> &instance,
+	                                ProblemData<unsigned int, double> &preConData, double &mu,
+	                                std::vector<double> &vk, double &deltak, unsigned int &batchSize,
+	                                boost::mpi::communicator &world, std::ofstream &logFile, int &mode) {
+
+	}
+	virtual void computeInitialW(std::vector<double> &w, ProblemData<unsigned int, double> &instance, double & rho, int rank) {
 
 	}
 

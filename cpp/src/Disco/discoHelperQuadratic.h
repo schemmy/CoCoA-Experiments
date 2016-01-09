@@ -111,7 +111,6 @@ void distributed_PCG_Quadratic(std::vector<double> &w, ProblemData<unsigned int,
 
 
 	std::vector<int> flag(2);
-	mpi::request reqs[1];
 	double difference;
 	double objPre;
 
