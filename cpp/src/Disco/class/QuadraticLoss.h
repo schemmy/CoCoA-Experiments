@@ -146,153 +146,6 @@ public:
 
 	}
 
-	virtual void distributed_PCG(std::vector<double> &w, ProblemData<unsigned int, double> &instance, double &mu,
-	                             std::vector<double> &vk, double &deltak, unsigned int &batchSize,
-	                             boost::mpi::communicator &world, std::ofstream &logFile) {
-
-		int mode = 1;
-
-		std::vector<int> flag(2);
-		mpi::request reqs[1];
-
-		double start = 0;
-		double finish = 0;
-		double elapsedTime = 0;
-		double grad_norm;
-
-		double epsilon;
-		double alpha = 0.0;
-		double beta = 0.0;
-		std::vector<double> v(instance.m);
-		std::vector<double> s(instance.m);
-		std::vector<double> r(instance.m);
-		std::vector<double> u(instance.m);
-		std::vector<double> xTu(instance.n);
-		std::vector<double> xTw(instance.n);
-		std::vector<double> Hu(instance.m);
-		std::vector<double> Hv(instance.m);
-		std::vector<double> gradient(instance.m);
-		std::vector<unsigned int> randPick(batchSize);
-		std::vector<double> woodburyH(batchSize * batchSize);
-		std::vector<double> objective(2);
-		double diag = instance.lambda + mu;
-
-		computeVectorTimesData(w, instance, xTw, world, mode);
-		computeObjective(w, instance, xTw, objective[0], world, mode);
-		computeGradient(w, gradient, xTw, instance, world, mode);
-
-		geneWoodburyH(instance, batchSize, woodburyH, diag);
-
-		if (world.rank() == 0) {
-			grad_norm = cblas_l2_norm(instance.m, &gradient[0], 1);
-			printf("%ith runs %i CG iterations, the norm of gradient is %E, the objective is %E\n",
-			       0, 0, grad_norm, objective[0]);
-			logFile << 0 << "," << 0 << "," << 0 << "," << grad_norm << "," << objective[0] << endl;
-		}
-
-		for (unsigned int iter = 1; iter <= 100; iter++) {
-
-			start = gettime_();
-
-			flag[0] = 1;
-			flag[1] = 1;
-
-			cblas_set_to_zero(v);
-			cblas_set_to_zero(Hv);
-			vbroadcast(world, w, 0);
-			computeVectorTimesData(w, instance, xTw, world, mode);
-			computeGradient(w, gradient, xTw, instance, world, mode);
-
-			if (world.rank() == 0) {
-				grad_norm = cblas_l2_norm(instance.m, &gradient[0], 1);
-				epsilon = 0.05 * grad_norm * sqrt(instance.lambda / 10.0);
-				if (grad_norm < 1e-8) {
-					flag[1] = 0;
-				}
-
-				cblas_dcopy(instance.m, &gradient[0], 1, &r[0], 1);
-
-				// s= p^-1 r
-				if (batchSize == 0)
-					ifNoPreconditioning(instance.m, r, s);
-				else
-					WoodburySolverForDisco(instance, instance.m, batchSize, woodburyH, r, s, diag);
-
-				cblas_dcopy(instance.m, &s[0], 1, &u[0], 1);
-
-			}
-
-			int inner_iter = 0;
-			while (flag[0] != 0) {
-				vbroadcast(world, u, 0);
-				computeVectorTimesData(u, instance, xTu, world, mode);
-				computeHessianTimesAU(u, Hu, xTu, instance, world, mode);
-
-				if (world.rank() == 0) {
-					//cout<<"I will do this induvidually!!!!!!!!!!"<<endl;
-					double nom = cblas_ddot(instance.m, &r[0], 1, &s[0], 1);
-					double denom = cblas_ddot(instance.m, &u[0], 1, &Hu[0], 1);
-					alpha = nom / denom;
-
-					for (unsigned int i = 0; i < instance.m ; i++) {
-						v[i] += alpha * u[i];
-						Hv[i] += alpha * Hu[i];
-						r[i] -= alpha * Hu[i];
-					}
-					// solve linear system to get new s
-					if (batchSize == 0)
-						ifNoPreconditioning(instance.m, r, s);
-					else
-						WoodburySolverForDisco(instance, instance.m, batchSize, woodburyH, r, s, diag);
-
-					double nom_new = cblas_ddot(instance.m, &r[0], 1, &s[0], 1);
-					beta = nom_new / nom;
-
-					for (unsigned int i = 0; i < instance.m ; i++) {
-						u[i] = beta * u[i] + s[i];
-					}
-
-					double r_norm = cblas_l2_norm(instance.m, &r[0], 1);
-
-					if (r_norm <= epsilon || inner_iter > 500) {
-						cblas_dcopy(instance.m, &v[0], 1, &vk[0], 1);
-						double vHv = cblas_ddot(instance.m, &vk[0], 1, &Hv[0], 1); //vHvT^(t) or vHvT^(t+1)
-						double vHu = cblas_ddot(instance.m, &vk[0], 1, &Hu[0], 1);
-						deltak = sqrt(vHv + alpha * vHu);
-						flag[0] = 0;
-					}
-					inner_iter++;
-				}
-
-				vbroadcast(world, flag, 0);
-
-			}
-
-			if (world.rank() == 0) {
-				cblas_daxpy(instance.m, -1.0 / (1.0 + deltak), &vk[0], 1, &w[0], 1);
-			}
-
-			finish = gettime_();
-			elapsedTime += finish - start;
-			vbroadcast(world, w, 0);
-
-			computeVectorTimesData(w, instance, xTw, world, mode);
-			computeObjective(w, instance, xTw, objective[0], world, mode);
-			if (world.rank() == 0) {
-				printf("%ith runs %i CG iterations, the norm of gradient is %E, the objective is %E\n",
-				       iter, inner_iter, grad_norm, objective[0]);
-				logFile << iter << "," << 2 * inner_iter + 2 << "," << elapsedTime << "," << grad_norm << "," << objective[0] << endl;
-			}
-
-			if (flag[1] == 0)
-				break;
-
-
-		}
-
-
-	}
-
 
 
 	void distributed_PCGByD(std::vector<double> &w, ProblemData<unsigned int, double> &instance,
@@ -303,8 +156,6 @@ public:
 
 		std::vector<int> flag(2);
 
-		int flag_;
-		int innerflag;
 		std::vector<double> constantLocal(8);
 		std::vector<double> constantSum(8);
 
@@ -366,10 +217,9 @@ public:
 
 			}
 			else if (mode == 2) {
-				innerflag = 1;
-				flag_ = 1;
-				constantLocal[5] = innerflag;
-				constantSum[5] = innerflag * world.size();
+				flag[0] = 1;
+				constantLocal[5] = flag[0];
+				constantSum[5] = flag[0] * world.size();
 			}
 
 			cblas_set_to_zero(v);
@@ -379,13 +229,9 @@ public:
 
 
 			if (mode == 1) {
-
 				if (world.rank() == 0) {
 					grad_norm = cblas_l2_norm(instance.m, &gradient[0], 1);
 					epsilon = 0.05 * grad_norm * sqrt(instance.lambda / 10.0);
-					if (grad_norm < 1e-8) {
-						flag[1] = 0;
-					}
 					cblas_dcopy(instance.m, &gradient[0], 1, &r[0], 1);
 					// s= p^-1 r
 					if (batchSize == 0)
@@ -446,9 +292,8 @@ public:
 						double nom_new = cblas_ddot(instance.m, &r[0], 1, &s[0], 1);
 						beta = nom_new / nom;
 
-						for (unsigned int i = 0; i < instance.m ; i++) {
+						for (unsigned int i = 0; i < instance.m ; i++)
 							u[i] = beta * u[i] + s[i];
-						}
 
 						double r_norm = cblas_l2_norm(instance.m, &r[0], 1);
 
@@ -499,8 +344,8 @@ public:
 						double vHuLocal = cblas_ddot(instance.m, &vk[0], 1, &Hu[0], 1);
 						constantLocal[3] = vHvLocal;
 						constantLocal[4] = vHuLocal;
-						innerflag = 0;
-						constantLocal[5] = innerflag;
+						flag[0] = 0;
+						constantLocal[5] = flag[0];
 					}
 					inner_iter++;
 				}
@@ -530,7 +375,7 @@ public:
 					       iter, inner_iter, grad_norm, objective[0]);
 					logFile << iter << "," << 2 * inner_iter + 2 << "," << elapsedTime << "," << grad_norm << "," << objective[0] << endl;
 				}
-				if (flag[1] == 0)
+				if (grad_norm < 1e-8)
 					break;
 			}
 			else if (mode == 2) {
@@ -595,5 +440,152 @@ public:
 	}
 
 };
+
+	// virtual void distributed_PCG(std::vector<double> &w, ProblemData<unsigned int, double> &instance, double &mu,
+	//                              std::vector<double> &vk, double &deltak, unsigned int &batchSize,
+	//                              boost::mpi::communicator &world, std::ofstream &logFile) {
+
+	// 	int mode = 1;
+
+	// 	std::vector<int> flag(2);
+	// 	mpi::request reqs[1];
+
+	// 	double start = 0;
+	// 	double finish = 0;
+	// 	double elapsedTime = 0;
+	// 	double grad_norm;
+
+	// 	double epsilon;
+	// 	double alpha = 0.0;
+	// 	double beta = 0.0;
+	// 	std::vector<double> v(instance.m);
+	// 	std::vector<double> s(instance.m);
+	// 	std::vector<double> r(instance.m);
+	// 	std::vector<double> u(instance.m);
+	// 	std::vector<double> xTu(instance.n);
+	// 	std::vector<double> xTw(instance.n);
+	// 	std::vector<double> Hu(instance.m);
+	// 	std::vector<double> Hv(instance.m);
+	// 	std::vector<double> gradient(instance.m);
+	// 	std::vector<unsigned int> randPick(batchSize);
+	// 	std::vector<double> woodburyH(batchSize * batchSize);
+	// 	std::vector<double> objective(2);
+	// 	double diag = instance.lambda + mu;
+
+	// 	computeVectorTimesData(w, instance, xTw, world, mode);
+	// 	computeObjective(w, instance, xTw, objective[0], world, mode);
+	// 	computeGradient(w, gradient, xTw, instance, world, mode);
+
+	// 	geneWoodburyH(instance, batchSize, woodburyH, diag);
+
+	// 	if (world.rank() == 0) {
+	// 		grad_norm = cblas_l2_norm(instance.m, &gradient[0], 1);
+	// 		printf("%ith runs %i CG iterations, the norm of gradient is %E, the objective is %E\n",
+	// 		       0, 0, grad_norm, objective[0]);
+	// 		logFile << 0 << "," << 0 << "," << 0 << "," << grad_norm << "," << objective[0] << endl;
+	// 	}
+
+	// 	for (unsigned int iter = 1; iter <= 100; iter++) {
+
+	// 		start = gettime_();
+
+	// 		flag[0] = 1;
+	// 		flag[1] = 1;
+
+	// 		cblas_set_to_zero(v);
+	// 		cblas_set_to_zero(Hv);
+	// 		vbroadcast(world, w, 0);
+	// 		computeVectorTimesData(w, instance, xTw, world, mode);
+	// 		computeGradient(w, gradient, xTw, instance, world, mode);
+
+	// 		if (world.rank() == 0) {
+	// 			grad_norm = cblas_l2_norm(instance.m, &gradient[0], 1);
+	// 			epsilon = 0.05 * grad_norm * sqrt(instance.lambda / 10.0);
+	// 			if (grad_norm < 1e-8) {
+	// 				flag[1] = 0;
+	// 			}
+
+	// 			cblas_dcopy(instance.m, &gradient[0], 1, &r[0], 1);
+
+	// 			// s= p^-1 r
+	// 			if (batchSize == 0)
+	// 				ifNoPreconditioning(instance.m, r, s);
+	// 			else
+	// 				WoodburySolverForDisco(instance, instance.m, batchSize, woodburyH, r, s, diag);
+
+	// 			cblas_dcopy(instance.m, &s[0], 1, &u[0], 1);
+
+	// 		}
+
+	// 		int inner_iter = 0;
+	// 		while (flag[0] != 0) {
+	// 			vbroadcast(world, u, 0);
+	// 			computeVectorTimesData(u, instance, xTu, world, mode);
+	// 			computeHessianTimesAU(u, Hu, xTu, instance, world, mode);
+
+	// 			if (world.rank() == 0) {
+	// 				//cout<<"I will do this induvidually!!!!!!!!!!"<<endl;
+	// 				double nom = cblas_ddot(instance.m, &r[0], 1, &s[0], 1);
+	// 				double denom = cblas_ddot(instance.m, &u[0], 1, &Hu[0], 1);
+	// 				alpha = nom / denom;
+
+	// 				for (unsigned int i = 0; i < instance.m ; i++) {
+	// 					v[i] += alpha * u[i];
+	// 					Hv[i] += alpha * Hu[i];
+	// 					r[i] -= alpha * Hu[i];
+	// 				}
+	// 				// solve linear system to get new s
+	// 				if (batchSize == 0)
+	// 					ifNoPreconditioning(instance.m, r, s);
+	// 				else
+	// 					WoodburySolverForDisco(instance, instance.m, batchSize, woodburyH, r, s, diag);
+
+	// 				double nom_new = cblas_ddot(instance.m, &r[0], 1, &s[0], 1);
+	// 				beta = nom_new / nom;
+
+	// 				for (unsigned int i = 0; i < instance.m ; i++) {
+	// 					u[i] = beta * u[i] + s[i];
+	// 				}
+
+	// 				double r_norm = cblas_l2_norm(instance.m, &r[0], 1);
+
+	// 				if (r_norm <= epsilon || inner_iter > 500) {
+	// 					cblas_dcopy(instance.m, &v[0], 1, &vk[0], 1);
+	// 					double vHv = cblas_ddot(instance.m, &vk[0], 1, &Hv[0], 1); //vHvT^(t) or vHvT^(t+1)
+	// 					double vHu = cblas_ddot(instance.m, &vk[0], 1, &Hu[0], 1);
+	// 					deltak = sqrt(vHv + alpha * vHu);
+	// 					flag[0] = 0;
+	// 				}
+	// 				inner_iter++;
+	// 			}
+
+	// 			vbroadcast(world, flag, 0);
+
+	// 		}
+
+	// 		if (world.rank() == 0) {
+	// 			cblas_daxpy(instance.m, -1.0 / (1.0 + deltak), &vk[0], 1, &w[0], 1);
+	// 		}
+
+	// 		finish = gettime_();
+	// 		elapsedTime += finish - start;
+	// 		vbroadcast(world, w, 0);
+
+	// 		computeVectorTimesData(w, instance, xTw, world, mode);
+	// 		computeObjective(w, instance, xTw, objective[0], world, mode);
+	// 		if (world.rank() == 0) {
+	// 			printf("%ith runs %i CG iterations, the norm of gradient is %E, the objective is %E\n",
+	// 			       iter, inner_iter, grad_norm, objective[0]);
+	// 			logFile << iter << "," << 2 * inner_iter + 2 << "," << elapsedTime << "," << grad_norm << "," << objective[0] << endl;
+	// 		}
+
+	// 		if (flag[1] == 0)
+	// 			break;
+
+
+	// 	}
+
+
+	// }
 
 #endif /* QUADRATICLOSS_H_ */
