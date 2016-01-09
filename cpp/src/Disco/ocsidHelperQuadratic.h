@@ -28,7 +28,7 @@ void computeObjectiveQuadratic(std::vector<double> &w, ProblemData<unsigned int,
 		//obj += log(1.0 + exp(-1.0 * instance.b[idx] * w_x));
 	}
 
-	obj = 1.0 / instance.n * obj + 0.5 * instance.lambda * w_x_world[instance.n];
+	obj = 1.0 / instance.total_n * obj + 0.5 * instance.lambda * w_x_world[instance.n];
 
 }
 
