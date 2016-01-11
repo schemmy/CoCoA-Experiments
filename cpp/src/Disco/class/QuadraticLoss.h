@@ -35,7 +35,6 @@ public:
 			cblas_dcopy(result.size(), &res[0], 1, &result[0], 1);
 		else if (mode == 2)
 			vall_reduce(world, res, result);
-
 	}
 
 	virtual void computeObjective(std::vector<double> &w, ProblemData<unsigned int, double> &instance,
@@ -53,8 +52,11 @@ public:
 			obj_local = 1.0 / instance.total_n * obj + 0.5 * instance.lambda * wNorm * wNorm / world.size();
 			vall_reduce(world, &obj_local, &obj, 1);
 		}
-		else if (mode == 2)
-			obj = 1.0 / instance.total_n * obj + 0.5 * instance.lambda * wNorm * wNorm;
+		else if (mode == 2){
+			double obj_local;
+			obj_local = 1.0 / instance.total_n * obj/ world.size() + 0.5 * instance.lambda * wNorm * wNorm;
+			vall_reduce(world, &obj_local, &obj, 1);
+		}
 
 
 	}
@@ -181,7 +183,6 @@ public:
 		computeVectorTimesData(w, instance, xTw, world, mode);
 		computeObjective(w, instance, xTw, objective[0], world, mode);
 		computeGradient(w, gradient, xTw, instance, world, mode);
-
 		if (mode == 1) {
 			geneWoodburyH(instance, batchSize, woodburyH, diag);
 			if (world.rank() == 0) {
@@ -196,6 +197,7 @@ public:
 			grad_norm = cblas_l2_norm(instance.m, &gradient[0], 1);
 			constantLocal[6] = grad_norm * grad_norm;
 			vall_reduce(world, constantLocal, constantSum);
+			constantSum[6] = sqrt(constantSum[6]);
 			if (world.rank() == 0) {
 				printf("%ith runs %i CG iterations, the norm of gradient is %E, the objective is %E\n",
 				       0, 0, constantSum[6], objective[0]);
@@ -227,7 +229,7 @@ public:
 				if (world.rank() == 0) {
 					grad_norm = cblas_l2_norm(instance.m, &gradient[0], 1);
 					epsilon = 0.05 * grad_norm * sqrt(instance.lambda / 10.0);
-					if (grad_norm < 1e-8) {
+					if (grad_norm < 1e-12) {
 						flag[1] = 0;
 					}
 					cblas_dcopy(instance.m, &gradient[0], 1, &r[0], 1);
@@ -358,6 +360,7 @@ public:
 				vall_reduce(world, constantLocal, constantSum);
 				deltak = sqrt(constantSum[3] + alpha * constantSum[4]);
 				cblas_daxpy(instance.m, -1.0 / (1.0 + deltak), &vk[0], 1, &w[0], 1);
+				constantSum[6] = sqrt(constantSum[6]);
 			}
 
 			finish = gettime_();
@@ -372,7 +375,7 @@ public:
 					break;
 			}
 			else if (mode == 2) {
-				if (constantSum[6] < 1e-8) {
+				if (constantSum[6] < 1e-12) {
 					break;
 				}
 			}

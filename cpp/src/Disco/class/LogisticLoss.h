@@ -54,9 +54,11 @@ public:
 			obj_local = 1.0 / instance.total_n * obj + 0.5 * instance.lambda * wNorm * wNorm / world.size();
 			vall_reduce(world, &obj_local, &obj, 1);
 		}
-		else if (mode == 2)
-			obj = 1.0 / instance.total_n * obj + 0.5 * instance.lambda * wNorm * wNorm;
-
+		else if (mode == 2) {
+			double obj_local;
+			obj_local = 1.0 / instance.total_n * obj / world.size() + 0.5 * instance.lambda * wNorm * wNorm;
+			vall_reduce(world, &obj_local, &obj, 1);
+		}
 
 	}
 
@@ -252,7 +254,7 @@ public:
 				if (world.rank() == 0) {
 					grad_norm = cblas_l2_norm(instance.m, &gradient[0], 1);
 					epsilon = 0.05 * grad_norm * sqrt(instance.lambda / 10.0);
-					if (grad_norm < 1e-8) {
+					if (grad_norm < 1e-12) {
 						flag[1] = 0;
 					}
 					cblas_dcopy(instance.m, &gradient[0], 1, &r[0], 1);
@@ -402,7 +404,7 @@ public:
 					break;
 			}
 			else if (mode == 2) {
-				if (constantSum[6] < 1e-8) {
+				if (constantSum[6] < 1e-12) {
 					break;
 				}
 			}

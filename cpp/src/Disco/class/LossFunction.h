@@ -21,7 +21,7 @@ public:
 
 
 	virtual void computeVectorTimesData(std::vector<double> &vec, ProblemData<unsigned int, double> &instance,
-	                                    std::vector<double> &result, boost::mpi::communicator &world, int &mode) {
+	                                    std::vector<double> &result, std::vector<double> &localVec, boost::mpi::communicator &world, int &mode) {
 	}
 
 	virtual void computeObjective(std::vector<double> &w, ProblemData<unsigned int, double> &instance,

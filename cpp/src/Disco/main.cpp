@@ -10,7 +10,7 @@
 #include "../utils/matrixvector.h"
 #include "../solver/distributed/distributed_structures.h"
 #include "../helpers/option_distributed_console_parser.h"
-#include "readWholeData.h"
+#include "class/readWholeData.h"
 #include "../solver/distributed/distributed_essentials.h"
 
 #include "class/LossFunction.h"
@@ -37,24 +37,26 @@ int main(int argc, char *argv[]) {
 	ProblemData<unsigned int, double> instance;
 	instance.theta = ctx.tmp;
 	instance.lambda = ctx.lambda;
-	loadDistributedSparseSVMRowData(ctx.matrixAFile, world.rank(), world.size(), instance, false);
 
 	ProblemData<unsigned int, double> preConData;
 
-	int mode = 1;
+	int mode = distributedSettings.LocalMethods;
 	if (mode == 1) {
+		loadDistributedSparseSVMRowData(ctx.matrixAFile, world.rank(), world.size(), instance, false);
 		unsigned int finalM;
 		vall_reduce_maximum(world, &instance.m, &finalM, 1);
 		instance.m = finalM;
 		vall_reduce(world, &instance.n, &instance.total_n, 1);
 	}
 	else if (mode == 2) {
+		loadDistributedByFeaturesSVMRowData(ctx.matrixAFile, world.rank(), world.size(), instance, false);
 		readPartDataForPreCondi(ctx.matrixAFile, preConData, batchsize, false);
 		instance.total_n = instance.n;
 	}
 
 
 	std::vector<double> w(instance.m);
+	//for (unsigned int i = 0; i < instance.m; i++) w[i] = 0.5;
 	std::vector<double> vk(instance.m);
 	double rho = 1.0 / instance.n;
 	double mu = 0.0001;
@@ -88,8 +90,7 @@ int main(int argc, char *argv[]) {
 	// }
 
 	lf->distributed_PCG(w, instance, preConData, mu, vk, deltak, batchsize, world, logFile, mode);
-
-
+	//double nn = cblas_l2_norm(instance.m, &w[0], 1) * cblas_l2_norm(instance.m, &w[0], 1); cout<<nn<<endl;
 	logFile.close();
 	MPI::Finalize();
 	return 0;
