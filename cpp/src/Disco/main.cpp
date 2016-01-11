@@ -15,6 +15,7 @@
 
 #include "class/LossFunction.h"
 #include "class/QuadraticLoss.h"
+#include "class/LogisticLoss.h"
 #include  <sstream>
 
 int main(int argc, char *argv[]) {
@@ -67,16 +68,26 @@ int main(int argc, char *argv[]) {
 	int loss = distributedSettings.lossFunction;
 
 	LossFunction<unsigned int, double> * lf;
-	lf = new QuadraticLoss<unsigned int, double>();
-	lf->init(instance);
 
-
-	if (mode == 1) {
-		if (world.rank() == 0)
-			lf->computeInitialW(w, instance, rho, world.rank());
+	switch (loss) {
+	case 1:
+		lf = new QuadraticLoss<unsigned int, double>();
+		lf->init(instance);
+		break;
+	case 2:
+		lf = new LogisticLoss<unsigned int, double>();
+		lf->init(instance);
+		break;
+	default:
+		break;
 	}
 
-	lf->distributed_PCGByD(w, instance, preConData, mu, vk, deltak, batchsize, world, logFile, mode);
+	// if (mode == 1) {
+	// 	if (world.rank() == 0)
+	// 		lf->computeInitialW(w, instance, rho, world.rank());
+	// }
+
+	lf->distributed_PCG(w, instance, preConData, mu, vk, deltak, batchsize, world, logFile, mode);
 
 
 	logFile.close();

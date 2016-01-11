@@ -4,7 +4,6 @@
  *  Created on: Dec 1, 2014
  *      Author: taki
  */
-
 #ifndef QUADRATICLOSS_H_
 #define QUADRATICLOSS_H_
 
@@ -14,13 +13,10 @@
 template<typename L, typename D>
 class QuadraticLoss: public LossFunction<L, D>  {
 public:
-	QuadraticLoss() {
 
-	}
+	QuadraticLoss() {}
 
 	virtual ~QuadraticLoss() {}
-
-
 
 	virtual void computeVectorTimesData(std::vector<double> &vec, ProblemData<unsigned int, double> &instance,
 	                                    std::vector<double> &result, boost::mpi::communicator &world, int &mode) {
@@ -148,10 +144,10 @@ public:
 
 
 
-	void distributed_PCGByD(std::vector<double> &w, ProblemData<unsigned int, double> &instance,
-	                        ProblemData<unsigned int, double> &preConData, double &mu,
-	                        std::vector<double> &vk, double &deltak, unsigned int &batchSize,
-	                        boost::mpi::communicator &world, std::ofstream &logFile, int &mode) {
+	void distributed_PCG(std::vector<double> &w, ProblemData<unsigned int, double> &instance,
+	                     ProblemData<unsigned int, double> &preConData, double &mu,
+	                     std::vector<double> &vk, double &deltak, unsigned int &batchSize,
+	                     boost::mpi::communicator &world, std::ofstream &logFile, int &mode) {
 
 
 		std::vector<int> flag(2);
@@ -206,10 +202,9 @@ public:
 				logFile << 0 << "," << 0 << "," << 0 << "," << constantSum[6]  << "," << objective[0] << endl;
 			}
 		}
-		for (unsigned int iter = 1; iter <= 100; iter++) {
+		for (int iter = 1; iter <= 100; iter++) {
 
 			start = gettime_();
-
 			if (mode == 1) {
 				flag[0] = 1;
 				flag[1] = 1;
@@ -232,6 +227,9 @@ public:
 				if (world.rank() == 0) {
 					grad_norm = cblas_l2_norm(instance.m, &gradient[0], 1);
 					epsilon = 0.05 * grad_norm * sqrt(instance.lambda / 10.0);
+					if (grad_norm < 1e-8) {
+						flag[1] = 0;
+					}
 					cblas_dcopy(instance.m, &gradient[0], 1, &r[0], 1);
 					// s= p^-1 r
 					if (batchSize == 0)
@@ -368,34 +366,45 @@ public:
 			computeVectorTimesData(w, instance, xTw, world, mode);
 			computeObjective(w, instance, xTw, objective[0], world, mode);
 
-
+			output(instance, iter, inner_iter, elapsedTime, constantSum, objective, grad_norm, logFile, world, mode);
 			if (mode == 1) {
-				if (world.rank() == 0) {
-					printf("%ith runs %i CG iterations, the norm of gradient is %E, the objective is %E\n",
-					       iter, inner_iter, grad_norm, objective[0]);
-					logFile << iter << "," << 2 * inner_iter + 2 << "," << elapsedTime << "," << grad_norm << "," << objective[0] << endl;
-				}
-				if (grad_norm < 1e-8)
+				if (flag[1] == 0)
 					break;
 			}
 			else if (mode == 2) {
-				if (world.rank() == 0) {
-					printf("%ith runs %i CG iterations, the norm of gradient is %E, the objective is %E\n",
-					       iter, inner_iter, constantSum[6], objective[0]);
-					logFile << iter << "," << inner_iter << "," << elapsedTime << "," << constantSum[6] << "," << objective[0] << endl;
-				}
 				if (constantSum[6] < 1e-8) {
-					//cout << endl;
-					//flag = 0;
-					//constantLocal[6] = flag;
 					break;
 				}
 			}
+
+
 		}
 	}
 
 
-	virtual void computeInitialW(std::vector<double> &w, ProblemData<unsigned int, double> &instance, double &rho, int rank) {
+	virtual void output(ProblemData<unsigned int, double> &instance, int &iter, int &inner_iter, double & elapsedTime,
+	                    std::vector<double> &constantSum, std::vector<double> &objective, double & grad_norm,
+	                    std::ofstream & logFile, boost::mpi::communicator & world, int &mode) {
+
+		if (mode == 1) {
+			if (world.rank() == 0) {
+				printf("%ith runs %i CG iterations, the norm of gradient is %E, the objective is %E\n",
+				       iter, inner_iter, grad_norm, objective[0]);
+				logFile << iter << "," << inner_iter << "," << elapsedTime << "," << grad_norm << "," << objective[0] << endl;
+			}
+		}
+		else if (mode == 2) {
+			if (world.rank() == 0) {
+				printf("%ith runs %i CG iterations, the norm of gradient is %E, the objective is %E\n",
+				       iter, inner_iter, constantSum[6], objective[0]);
+				logFile << iter << "," << inner_iter << "," << elapsedTime << "," << constantSum[6] << "," << objective[0] << endl;
+			}
+
+		}
+
+	}
+
+	virtual void computeInitialW(std::vector<double> &w, ProblemData<unsigned int, double> &instance, double & rho, int rank) {
 		std::vector<double> deltaW(instance.m);
 		std::vector<double> deltaAlpha(instance.n);
 		std::vector<double> alpha(instance.n);
@@ -441,151 +450,151 @@ public:
 
 };
 
-	// virtual void distributed_PCG(std::vector<double> &w, ProblemData<unsigned int, double> &instance, double &mu,
-	//                              std::vector<double> &vk, double &deltak, unsigned int &batchSize,
-	//                              boost::mpi::communicator &world, std::ofstream &logFile) {
+// virtual void distributed_PCG(std::vector<double> &w, ProblemData<unsigned int, double> &instance, double &mu,
+//                              std::vector<double> &vk, double &deltak, unsigned int &batchSize,
+//                              boost::mpi::communicator &world, std::ofstream &logFile) {
 
-	// 	int mode = 1;
+// 	int mode = 1;
 
-	// 	std::vector<int> flag(2);
-	// 	mpi::request reqs[1];
+// 	std::vector<int> flag(2);
+// 	mpi::request reqs[1];
 
-	// 	double start = 0;
-	// 	double finish = 0;
-	// 	double elapsedTime = 0;
-	// 	double grad_norm;
+// 	double start = 0;
+// 	double finish = 0;
+// 	double elapsedTime = 0;
+// 	double grad_norm;
 
-	// 	double epsilon;
-	// 	double alpha = 0.0;
-	// 	double beta = 0.0;
-	// 	std::vector<double> v(instance.m);
-	// 	std::vector<double> s(instance.m);
-	// 	std::vector<double> r(instance.m);
-	// 	std::vector<double> u(instance.m);
-	// 	std::vector<double> xTu(instance.n);
-	// 	std::vector<double> xTw(instance.n);
-	// 	std::vector<double> Hu(instance.m);
-	// 	std::vector<double> Hv(instance.m);
-	// 	std::vector<double> gradient(instance.m);
-	// 	std::vector<unsigned int> randPick(batchSize);
-	// 	std::vector<double> woodburyH(batchSize * batchSize);
-	// 	std::vector<double> objective(2);
-	// 	double diag = instance.lambda + mu;
+// 	double epsilon;
+// 	double alpha = 0.0;
+// 	double beta = 0.0;
+// 	std::vector<double> v(instance.m);
+// 	std::vector<double> s(instance.m);
+// 	std::vector<double> r(instance.m);
+// 	std::vector<double> u(instance.m);
+// 	std::vector<double> xTu(instance.n);
+// 	std::vector<double> xTw(instance.n);
+// 	std::vector<double> Hu(instance.m);
+// 	std::vector<double> Hv(instance.m);
+// 	std::vector<double> gradient(instance.m);
+// 	std::vector<unsigned int> randPick(batchSize);
+// 	std::vector<double> woodburyH(batchSize * batchSize);
+// 	std::vector<double> objective(2);
+// 	double diag = instance.lambda + mu;
 
-	// 	computeVectorTimesData(w, instance, xTw, world, mode);
-	// 	computeObjective(w, instance, xTw, objective[0], world, mode);
-	// 	computeGradient(w, gradient, xTw, instance, world, mode);
+// 	computeVectorTimesData(w, instance, xTw, world, mode);
+// 	computeObjective(w, instance, xTw, objective[0], world, mode);
+// 	computeGradient(w, gradient, xTw, instance, world, mode);
 
-	// 	geneWoodburyH(instance, batchSize, woodburyH, diag);
+// 	geneWoodburyH(instance, batchSize, woodburyH, diag);
 
-	// 	if (world.rank() == 0) {
-	// 		grad_norm = cblas_l2_norm(instance.m, &gradient[0], 1);
-	// 		printf("%ith runs %i CG iterations, the norm of gradient is %E, the objective is %E\n",
-	// 		       0, 0, grad_norm, objective[0]);
-	// 		logFile << 0 << "," << 0 << "," << 0 << "," << grad_norm << "," << objective[0] << endl;
-	// 	}
+// 	if (world.rank() == 0) {
+// 		grad_norm = cblas_l2_norm(instance.m, &gradient[0], 1);
+// 		printf("%ith runs %i CG iterations, the norm of gradient is %E, the objective is %E\n",
+// 		       0, 0, grad_norm, objective[0]);
+// 		logFile << 0 << "," << 0 << "," << 0 << "," << grad_norm << "," << objective[0] << endl;
+// 	}
 
-	// 	for (unsigned int iter = 1; iter <= 100; iter++) {
+// 	for (unsigned int iter = 1; iter <= 100; iter++) {
 
-	// 		start = gettime_();
+// 		start = gettime_();
 
-	// 		flag[0] = 1;
-	// 		flag[1] = 1;
+// 		flag[0] = 1;
+// 		flag[1] = 1;
 
-	// 		cblas_set_to_zero(v);
-	// 		cblas_set_to_zero(Hv);
-	// 		vbroadcast(world, w, 0);
-	// 		computeVectorTimesData(w, instance, xTw, world, mode);
-	// 		computeGradient(w, gradient, xTw, instance, world, mode);
+// 		cblas_set_to_zero(v);
+// 		cblas_set_to_zero(Hv);
+// 		vbroadcast(world, w, 0);
+// 		computeVectorTimesData(w, instance, xTw, world, mode);
+// 		computeGradient(w, gradient, xTw, instance, world, mode);
 
-	// 		if (world.rank() == 0) {
-	// 			grad_norm = cblas_l2_norm(instance.m, &gradient[0], 1);
-	// 			epsilon = 0.05 * grad_norm * sqrt(instance.lambda / 10.0);
-	// 			if (grad_norm < 1e-8) {
-	// 				flag[1] = 0;
-	// 			}
+// 		if (world.rank() == 0) {
+// 			grad_norm = cblas_l2_norm(instance.m, &gradient[0], 1);
+// 			epsilon = 0.05 * grad_norm * sqrt(instance.lambda / 10.0);
+// 			if (grad_norm < 1e-8) {
+// 				flag[1] = 0;
+// 			}
 
-	// 			cblas_dcopy(instance.m, &gradient[0], 1, &r[0], 1);
+// 			cblas_dcopy(instance.m, &gradient[0], 1, &r[0], 1);
 
-	// 			// s= p^-1 r
-	// 			if (batchSize == 0)
-	// 				ifNoPreconditioning(instance.m, r, s);
-	// 			else
-	// 				WoodburySolverForDisco(instance, instance.m, batchSize, woodburyH, r, s, diag);
+// 			// s= p^-1 r
+// 			if (batchSize == 0)
+// 				ifNoPreconditioning(instance.m, r, s);
+// 			else
+// 				WoodburySolverForDisco(instance, instance.m, batchSize, woodburyH, r, s, diag);
 
-	// 			cblas_dcopy(instance.m, &s[0], 1, &u[0], 1);
+// 			cblas_dcopy(instance.m, &s[0], 1, &u[0], 1);
 
-	// 		}
+// 		}
 
-	// 		int inner_iter = 0;
-	// 		while (flag[0] != 0) {
-	// 			vbroadcast(world, u, 0);
-	// 			computeVectorTimesData(u, instance, xTu, world, mode);
-	// 			computeHessianTimesAU(u, Hu, xTu, instance, world, mode);
+// 		int inner_iter = 0;
+// 		while (flag[0] != 0) {
+// 			vbroadcast(world, u, 0);
+// 			computeVectorTimesData(u, instance, xTu, world, mode);
+// 			computeHessianTimesAU(u, Hu, xTu, instance, world, mode);
 
-	// 			if (world.rank() == 0) {
-	// 				//cout<<"I will do this induvidually!!!!!!!!!!"<<endl;
-	// 				double nom = cblas_ddot(instance.m, &r[0], 1, &s[0], 1);
-	// 				double denom = cblas_ddot(instance.m, &u[0], 1, &Hu[0], 1);
-	// 				alpha = nom / denom;
+// 			if (world.rank() == 0) {
+// 				//cout<<"I will do this induvidually!!!!!!!!!!"<<endl;
+// 				double nom = cblas_ddot(instance.m, &r[0], 1, &s[0], 1);
+// 				double denom = cblas_ddot(instance.m, &u[0], 1, &Hu[0], 1);
+// 				alpha = nom / denom;
 
-	// 				for (unsigned int i = 0; i < instance.m ; i++) {
-	// 					v[i] += alpha * u[i];
-	// 					Hv[i] += alpha * Hu[i];
-	// 					r[i] -= alpha * Hu[i];
-	// 				}
-	// 				// solve linear system to get new s
-	// 				if (batchSize == 0)
-	// 					ifNoPreconditioning(instance.m, r, s);
-	// 				else
-	// 					WoodburySolverForDisco(instance, instance.m, batchSize, woodburyH, r, s, diag);
+// 				for (unsigned int i = 0; i < instance.m ; i++) {
+// 					v[i] += alpha * u[i];
+// 					Hv[i] += alpha * Hu[i];
+// 					r[i] -= alpha * Hu[i];
+// 				}
+// 				// solve linear system to get new s
+// 				if (batchSize == 0)
+// 					ifNoPreconditioning(instance.m, r, s);
+// 				else
+// 					WoodburySolverForDisco(instance, instance.m, batchSize, woodburyH, r, s, diag);
 
-	// 				double nom_new = cblas_ddot(instance.m, &r[0], 1, &s[0], 1);
-	// 				beta = nom_new / nom;
+// 				double nom_new = cblas_ddot(instance.m, &r[0], 1, &s[0], 1);
+// 				beta = nom_new / nom;
 
-	// 				for (unsigned int i = 0; i < instance.m ; i++) {
-	// 					u[i] = beta * u[i] + s[i];
-	// 				}
+// 				for (unsigned int i = 0; i < instance.m ; i++) {
+// 					u[i] = beta * u[i] + s[i];
+// 				}
 
-	// 				double r_norm = cblas_l2_norm(instance.m, &r[0], 1);
+// 				double r_norm = cblas_l2_norm(instance.m, &r[0], 1);
 
-	// 				if (r_norm <= epsilon || inner_iter > 500) {
-	// 					cblas_dcopy(instance.m, &v[0], 1, &vk[0], 1);
-	// 					double vHv = cblas_ddot(instance.m, &vk[0], 1, &Hv[0], 1); //vHvT^(t) or vHvT^(t+1)
-	// 					double vHu = cblas_ddot(instance.m, &vk[0], 1, &Hu[0], 1);
-	// 					deltak = sqrt(vHv + alpha * vHu);
-	// 					flag[0] = 0;
-	// 				}
-	// 				inner_iter++;
-	// 			}
+// 				if (r_norm <= epsilon || inner_iter > 500) {
+// 					cblas_dcopy(instance.m, &v[0], 1, &vk[0], 1);
+// 					double vHv = cblas_ddot(instance.m, &vk[0], 1, &Hv[0], 1); //vHvT^(t) or vHvT^(t+1)
+// 					double vHu = cblas_ddot(instance.m, &vk[0], 1, &Hu[0], 1);
+// 					deltak = sqrt(vHv + alpha * vHu);
+// 					flag[0] = 0;
+// 				}
+// 				inner_iter++;
+// 			}
 
-	// 			vbroadcast(world, flag, 0);
+// 			vbroadcast(world, flag, 0);
 
-	// 		}
+// 		}
 
-	// 		if (world.rank() == 0) {
-	// 			cblas_daxpy(instance.m, -1.0 / (1.0 + deltak), &vk[0], 1, &w[0], 1);
-	// 		}
+// 		if (world.rank() == 0) {
+// 			cblas_daxpy(instance.m, -1.0 / (1.0 + deltak), &vk[0], 1, &w[0], 1);
+// 		}
 
-	// 		finish = gettime_();
-	// 		elapsedTime += finish - start;
-	// 		vbroadcast(world, w, 0);
+// 		finish = gettime_();
+// 		elapsedTime += finish - start;
+// 		vbroadcast(world, w, 0);
 
-	// 		computeVectorTimesData(w, instance, xTw, world, mode);
-	// 		computeObjective(w, instance, xTw, objective[0], world, mode);
-	// 		if (world.rank() == 0) {
-	// 			printf("%ith runs %i CG iterations, the norm of gradient is %E, the objective is %E\n",
-	// 			       iter, inner_iter, grad_norm, objective[0]);
-	// 			logFile << iter << "," << 2 * inner_iter + 2 << "," << elapsedTime << "," << grad_norm << "," << objective[0] << endl;
-	// 		}
+// 		computeVectorTimesData(w, instance, xTw, world, mode);
+// 		computeObjective(w, instance, xTw, objective[0], world, mode);
+// 		if (world.rank() == 0) {
+// 			printf("%ith runs %i CG iterations, the norm of gradient is %E, the objective is %E\n",
+// 			       iter, inner_iter, grad_norm, objective[0]);
+// 			logFile << iter << "," << 2 * inner_iter + 2 << "," << elapsedTime << "," << grad_norm << "," << objective[0] << endl;
+// 		}
 
-	// 		if (flag[1] == 0)
-	// 			break;
-
-
-	// 	}
+// 		if (flag[1] == 0)
+// 			break;
 
 
-	// }
+// 	}
+
+
+// }
 
 #endif /* QUADRATICLOSS_H_ */
