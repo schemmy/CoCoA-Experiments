@@ -120,20 +120,20 @@ public:
 
 	virtual void computeHessianTimesAU(std::vector<double> &u, std::vector<double> &Hu,
 	                                   std::vector<double> &xTu, ProblemData<unsigned int, double> &instance,
-	                                   boost::mpi::communicator & world, int &mode) {
+	                                   unsigned int &batchSizeH, boost::mpi::communicator & world, int &mode) {
 
 		cblas_set_to_zero(Hu);
 
-		for (unsigned int idx = 0; idx < instance.n ; idx++) {
+		for (unsigned int idx = 0; idx < batchSizeH; idx++) {
 			for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
-				Hu[instance.A_csr_col_idx[i]] += instance.A_csr_values[i] * instance.b[idx] * xTu[idx] / instance.total_n;
+				Hu[instance.A_csr_col_idx[i]] += instance.A_csr_values[i] * instance.b[idx] * xTu[idx] / batchSizeH;
 			}
 		}
 
 		if (mode == 1) {
 			std::vector<double> Hu_local(instance.m);
 			for (unsigned int i = 0; i < instance.m; i++)
-				Hu_local[i] = Hu[i] + instance.lambda / world.size() * u[i];
+				Hu_local[i] = Hu[i] / world.size() + instance.lambda / world.size() * u[i];
 			vall_reduce(world, Hu_local, Hu);
 		}
 		else if (mode == 2) {
@@ -146,9 +146,9 @@ public:
 
 
 
-	void distributed_PCG(std::vector<double> &w, ProblemData<unsigned int, double> &instance,
+	virtual void distributed_PCG(std::vector<double> &w, ProblemData<unsigned int, double> &instance,
 	                     ProblemData<unsigned int, double> &preConData, double &mu,
-	                     std::vector<double> &vk, double &deltak, unsigned int &batchSize,
+	                     std::vector<double> &vk, double &deltak, unsigned int &batchSizeP, unsigned int &batchSizeH,
 	                     boost::mpi::communicator &world, std::ofstream &logFile, int &mode) {
 
 
@@ -176,15 +176,15 @@ public:
 		std::vector<double> Hv(instance.m);
 		std::vector<double> Hu(instance.m);
 		std::vector<double> gradient(instance.m);
-		std::vector<unsigned int> randPick(batchSize);
-		std::vector<double> woodburyH(batchSize * batchSize);
+		std::vector<unsigned int> randPick(batchSizeP);
+		std::vector<double> woodburyH(batchSizeP * batchSizeP);
 		double diag = instance.lambda + mu;
 
 		computeVectorTimesData(w, instance, xTw, world, mode);
 		computeObjective(w, instance, xTw, objective[0], world, mode);
 		computeGradient(w, gradient, xTw, instance, world, mode);
 		if (mode == 1) {
-			geneWoodburyH(instance, batchSize, woodburyH, diag);
+			geneWoodburyH(instance, batchSizeP, woodburyH, diag);
 			if (world.rank() == 0) {
 				grad_norm = cblas_l2_norm(instance.m, &gradient[0], 1);
 				printf("%ith runs %i CG iterations, the norm of gradient is %E, the objective is %E\n",
@@ -193,7 +193,7 @@ public:
 			}
 		}
 		else if (mode == 2) {
-			geneWoodburyH(preConData, batchSize, woodburyH, diag);
+			geneWoodburyH(preConData, batchSizeP, woodburyH, diag);
 			grad_norm = cblas_l2_norm(instance.m, &gradient[0], 1);
 			constantLocal[6] = grad_norm * grad_norm;
 			vall_reduce(world, constantLocal, constantSum);
@@ -229,15 +229,15 @@ public:
 				if (world.rank() == 0) {
 					grad_norm = cblas_l2_norm(instance.m, &gradient[0], 1);
 					epsilon = 0.05 * grad_norm * sqrt(instance.lambda / 10.0);
-					if (grad_norm < 1e-12) {
+					if (grad_norm < 1e-8) {
 						flag[1] = 0;
 					}
 					cblas_dcopy(instance.m, &gradient[0], 1, &r[0], 1);
 					// s= p^-1 r
-					if (batchSize == 0)
+					if (batchSizeP == 0)
 						ifNoPreconditioning(instance.m, r, s);
 					else
-						WoodburySolverForDisco(instance, instance.m, batchSize, woodburyH, r, s, diag);
+						WoodburySolverForDisco(instance, instance.m, batchSizeP, woodburyH, r, s, diag);
 
 					cblas_dcopy(instance.m, &s[0], 1, &u[0], 1);
 				}
@@ -248,10 +248,10 @@ public:
 				epsilon = 0.05 * grad_norm * sqrt(instance.lambda / 10.0);
 				cblas_dcopy(instance.m, &gradient[0], 1, &r[0], 1);
 				// s= p^-1 r
-				if (batchSize == 0)
+				if (batchSizeP == 0)
 					ifNoPreconditioning(instance.m, r, s);
 				else
-					WoodburySolverForOcsid(preConData, instance, instance.m, batchSize, woodburyH, r, s, diag, world);
+					WoodburySolverForOcsid(preConData, instance, instance.m, batchSizeP, woodburyH, r, s, diag, world);
 
 				cblas_dcopy(instance.m, &s[0], 1, &u[0], 1);
 			}
@@ -264,12 +264,13 @@ public:
 						break;
 				}
 				else if (mode == 2) {
+					vall_reduce(world, constantLocal, constantSum);
 					if (constantSum[5] == 0)
 						break; // stop if all the inner flag = 0.
 				}
 
 				computeVectorTimesData(u, instance, xTu, world, mode);
-				computeHessianTimesAU(u, Hu, xTu, instance, world, mode);
+				computeHessianTimesAU(u, Hu, xTu, instance, batchSizeH, world, mode);
 
 				if (mode == 1) {
 					if (world.rank() == 0) {
@@ -284,10 +285,10 @@ public:
 							r[i] -= alpha * Hu[i];
 						}
 						// solve linear system to get new s
-						if (batchSize == 0)
+						if (batchSizeP == 0)
 							ifNoPreconditioning(instance.m, r, s);
 						else
-							WoodburySolverForDisco(instance, instance.m, batchSize, woodburyH, r, s, diag);
+							WoodburySolverForDisco(instance, instance.m, batchSizeP, woodburyH, r, s, diag);
 
 						double nom_new = cblas_ddot(instance.m, &r[0], 1, &s[0], 1);
 						beta = nom_new / nom;
@@ -323,10 +324,10 @@ public:
 					}
 
 					//CGSolver(P, instance.m, r, s);
-					if (batchSize == 0)
+					if (batchSizeP == 0)
 						ifNoPreconditioning(instance.m, r, s);
 					else
-						WoodburySolverForOcsid(preConData, instance, instance.m, batchSize, woodburyH, r, s, diag, world);
+						WoodburySolverForOcsid(preConData, instance, instance.m, batchSizeP, woodburyH, r, s, diag, world);
 
 					double rsNextLocal = cblas_ddot(instance.m, &r[0], 1, &s[0], 1);
 					constantLocal[2] = rsNextLocal;
@@ -375,7 +376,7 @@ public:
 					break;
 			}
 			else if (mode == 2) {
-				if (constantSum[6] < 1e-12) {
+				if (constantSum[6] < 1e-8) {
 					break;
 				}
 			}

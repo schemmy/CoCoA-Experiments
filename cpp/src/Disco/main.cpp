@@ -32,7 +32,8 @@ int main(int argc, char *argv[]) {
 		ctx.settings.verbose = false;
 	}
 
-	unsigned int batchsize = 100;
+	unsigned int batchsizeP = distributedSettings.iters_communicate_count;
+	unsigned int batchsizeH;
 
 	ProblemData<unsigned int, double> instance;
 	instance.theta = ctx.tmp;
@@ -50,10 +51,11 @@ int main(int argc, char *argv[]) {
 	}
 	else if (mode == 2) {
 		loadDistributedByFeaturesSVMRowData(ctx.matrixAFile, world.rank(), world.size(), instance, false);
-		readPartDataForPreCondi(ctx.matrixAFile, preConData, batchsize, false);
+		readPartDataForPreCondi(ctx.matrixAFile, preConData, batchsizeP, false);
 		instance.total_n = instance.n;
 	}
 
+	batchsizeH = floor(instance.n / 1);
 
 	std::vector<double> w(instance.m);
 	//for (unsigned int i = 0; i < instance.m; i++) w[i] = 0.5;
@@ -89,7 +91,7 @@ int main(int argc, char *argv[]) {
 	// 		lf->computeInitialW(w, instance, rho, world.rank());
 	// }
 
-	lf->distributed_PCG(w, instance, preConData, mu, vk, deltak, batchsize, world, logFile, mode);
+	lf->distributed_PCG(w, instance, preConData, mu, vk, deltak, batchsizeP, batchsizeH, world, logFile, mode);
 	//double nn = cblas_l2_norm(instance.m, &w[0], 1) * cblas_l2_norm(instance.m, &w[0], 1); cout<<nn<<endl;
 	logFile.close();
 	MPI::Finalize();

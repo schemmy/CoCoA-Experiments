@@ -40,12 +40,12 @@ public:
 
 	virtual void computeHessianTimesAU(std::vector<double> &u, std::vector<double> &Hu,
 	                                   std::vector<double> &xTu, ProblemData<unsigned int, double> &instance,
-	                                   boost::mpi::communicator & world, int &mode) {
+	                                   unsigned int &batchSizeH, boost::mpi::communicator & world, int &mode) {
 	}
 
 	virtual void distributed_PCG(std::vector<double> &w, ProblemData<unsigned int, double> &instance,
 	                                ProblemData<unsigned int, double> &preConData, double &mu,
-	                                std::vector<double> &vk, double &deltak, unsigned int &batchSize,
+	                                std::vector<double> &vk, double &deltak, unsigned int &batchSizeP, unsigned int &batchSizeH,
 	                                boost::mpi::communicator &world, std::ofstream &logFile, int &mode) {
 	}
 
