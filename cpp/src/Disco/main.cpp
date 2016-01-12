@@ -33,7 +33,6 @@ int main(int argc, char *argv[]) {
 	}
 
 	unsigned int batchsizeP = distributedSettings.iters_communicate_count;
-	unsigned int batchsizeH;
 
 	ProblemData<unsigned int, double> instance;
 	instance.theta = ctx.tmp;
@@ -55,13 +54,13 @@ int main(int argc, char *argv[]) {
 		instance.total_n = instance.n;
 	}
 
-	batchsizeH = floor(instance.n / 1);
+	unsigned int batchsizeH = floor(instance.n / distributedSettings.iterationsPerThread);
 
 	std::vector<double> w(instance.m);
 	//for (unsigned int i = 0; i < instance.m; i++) w[i] = 0.5;
 	std::vector<double> vk(instance.m);
 	double rho = 1.0 / instance.n;
-	double mu = 0.0001;
+	double mu = 0.001;
 	double deltak = 0.0;
 
 	std::stringstream ss;

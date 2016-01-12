@@ -44,9 +44,9 @@ public:
 	}
 
 	virtual void distributed_PCG(std::vector<double> &w, ProblemData<unsigned int, double> &instance,
-	                                ProblemData<unsigned int, double> &preConData, double &mu,
-	                                std::vector<double> &vk, double &deltak, unsigned int &batchSizeP, unsigned int &batchSizeH,
-	                                boost::mpi::communicator &world, std::ofstream &logFile, int &mode) {
+	                             ProblemData<unsigned int, double> &preConData, double &mu,
+	                             std::vector<double> &vk, double &deltak, unsigned int &batchSizeP, unsigned int &batchSizeH,
+	                             boost::mpi::communicator &world, std::ofstream &logFile, int &mode) {
 	}
 
 	virtual void output(ProblemData<unsigned int, double> &instance, int &iter, int &inner_iter, double & elapsedTime,
@@ -54,9 +54,12 @@ public:
 	                    std::ofstream & logFile, boost::mpi::communicator & world, int &mode) {
 	}
 
-	virtual void computeInitialW(std::vector<double> &w, ProblemData<unsigned int, double> &instance, 
-								double & rho, int rank) {
+	virtual void computeInitialW(std::vector<double> &w, ProblemData<unsigned int, double> &instance,
+	                             double & rho, int rank) {
 	}
+
+
+
 
 };
 

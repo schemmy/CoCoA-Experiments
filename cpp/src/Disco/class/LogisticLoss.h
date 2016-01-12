@@ -141,12 +141,14 @@ public:
 
 	virtual void computeHessianTimesAU(std::vector<double> &u, std::vector<double> &Hu, std::vector<double> &xTw,
 	                                   std::vector<double> &xTu, ProblemData<unsigned int, double> &instance,
-	                                   unsigned int &batchSizeH, boost::mpi::communicator & world, int &mode) {
+	                                   unsigned int &batchSizeH, std::vector<unsigned int> &randIdx,
+	                                   boost::mpi::communicator & world, int &mode) {
 
 		double temp, scalar;
 		cblas_set_to_zero(Hu);
 
-		for (unsigned int idx = 0; idx < batchSizeH ; idx++) {
+		for (unsigned int i = 0; i < batchSizeH ; i++) {
+			unsigned int idx = randIdx[i];
 			temp = exp(-xTw[idx]);
 			scalar = temp / (temp + 1) / (temp + 1);
 			for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++)
@@ -202,7 +204,10 @@ public:
 		std::vector<double> Hv(instance.m);
 		std::vector<double> Hu(instance.m);
 		std::vector<double> gradient(instance.m);
-		std::vector<unsigned int> randPick(batchSizeP);
+		std::vector<unsigned int> randIdx(batchSizeH);
+		std::vector<unsigned int> oneToN(instance.n);
+		for (unsigned int idx = 0; idx < instance.n; idx++)
+			oneToN[idx] = idx;
 		std::vector<double> woodburyH(batchSizeP * batchSizeP);
 		double diag = instance.lambda + mu;
 
@@ -229,6 +234,8 @@ public:
 			}
 		}
 		for (int iter = 1; iter <= 100; iter++) {
+
+			geneRandIdx(oneToN, randIdx, instance.n, batchSizeH);
 
 			start = gettime_();
 
@@ -299,7 +306,7 @@ public:
 				}
 
 				computeVectorTimesData(u, instance, xTu, world, mode);
-				computeHessianTimesAU(u, Hu, xTw, xTu, instance, batchSizeH, world, mode);
+				computeHessianTimesAU(u, Hu, xTw, xTu, instance, batchSizeH, randIdx, world, mode);
 
 				if (mode == 1) {
 					if (world.rank() == 0) {
