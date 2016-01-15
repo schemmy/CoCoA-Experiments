@@ -125,8 +125,8 @@ public:
 
 		cblas_set_to_zero(Hu);
 
-		for (unsigned int idx = 0; idx < batchSizeH; idx++) {
-			//unsigned int idx = randIdx[j];
+		for (unsigned int j = 0; j < batchSizeH; j++) {
+			unsigned int idx = randIdx[j];
 			for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
 				Hu[instance.A_csr_col_idx[i]] += instance.A_csr_values[i] * instance.b[idx] * xTu[idx] / batchSizeH;
 			}
