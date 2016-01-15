@@ -60,7 +60,7 @@ int main(int argc, char *argv[]) {
 	//for (unsigned int i = 0; i < instance.m; i++) w[i] = 0.5;
 	std::vector<double> vk(instance.m);
 	double rho = 1.0 / instance.n;
-	double mu = 0.001;
+	double mu = 0.1;
 	double deltak = 0.0;
 
 	int loss = distributedSettings.lossFunction;
