@@ -261,7 +261,7 @@ public:
 				if (world.rank() == 0) {
 					grad_norm = cblas_l2_norm(instance.m, &gradient[0], 1);
 					epsilon = 0.05 * grad_norm * sqrt(instance.lambda / 10.0);
-					if (grad_norm < 1e-8) {
+					if (grad_norm < 1e-10) {
 						flag[1] = 0;
 					}
 					cblas_dcopy(instance.m, &gradient[0], 1, &r[0], 1);
@@ -411,7 +411,7 @@ public:
 					break;
 			}
 			else if (mode == 2) {
-				if (constantSum[6] < 1e-8) {
+				if (constantSum[6] < 1e-10) {
 					break;
 				}
 			}

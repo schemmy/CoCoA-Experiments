@@ -59,8 +59,6 @@ public:
 	}
 
 
-
-
 };
 
 #endif /* LOSSFUNCTION_H_ */

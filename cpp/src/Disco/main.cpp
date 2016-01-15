@@ -63,12 +63,14 @@ int main(int argc, char *argv[]) {
 	double mu = 0.001;
 	double deltak = 0.0;
 
+	int loss = distributedSettings.lossFunction;
+
 	std::stringstream ss;
-	ss << ctx.matrixAFile << "_1_" << world.size() << ".log";
+	ss << ctx.matrixAFile << "_"<< loss <<"_" << mode <<"_" << batchsizeP <<"_" << distributedSettings.iterationsPerThread
+			 <<"_" << world.size() << ".log";
 	std::ofstream logFile;
 	logFile.open(ss.str().c_str());
 
-	int loss = distributedSettings.lossFunction;
 
 	LossFunction<unsigned int, double> * lf;
 

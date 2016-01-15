@@ -52,9 +52,9 @@ public:
 			obj_local = 1.0 / instance.total_n * obj + 0.5 * instance.lambda * wNorm * wNorm / world.size();
 			vall_reduce(world, &obj_local, &obj, 1);
 		}
-		else if (mode == 2){
+		else if (mode == 2) {
 			double obj_local;
-			obj_local = 1.0 / instance.total_n * obj/ world.size() + 0.5 * instance.lambda * wNorm * wNorm;
+			obj_local = 1.0 / instance.total_n * obj / world.size() + 0.5 * instance.lambda * wNorm * wNorm;
 			vall_reduce(world, &obj_local, &obj, 1);
 		}
 
@@ -149,9 +149,9 @@ public:
 
 
 	virtual void distributed_PCG(std::vector<double> &w, ProblemData<unsigned int, double> &instance,
-	                     ProblemData<unsigned int, double> &preConData, double &mu,
-	                     std::vector<double> &vk, double &deltak, unsigned int &batchSizeP, unsigned int &batchSizeH,
-	                     boost::mpi::communicator &world, std::ofstream &logFile, int &mode) {
+	                             ProblemData<unsigned int, double> &preConData, double &mu,
+	                             std::vector<double> &vk, double &deltak, unsigned int &batchSizeP, unsigned int &batchSizeH,
+	                             boost::mpi::communicator &world, std::ofstream &logFile, int &mode) {
 
 
 		std::vector<int> flag(2);
@@ -212,7 +212,7 @@ public:
 		for (int iter = 1; iter <= 100; iter++) {
 
 			geneRandIdx(oneToN, randIdx, instance.n, batchSizeH);
-		//for (unsigned int idx = 0; idx < batchSizeH; idx++) cout<<randIdx[idx]<<"   ";
+			//for (unsigned int idx = 0; idx < batchSizeH; idx++) cout<<randIdx[idx]<<"   ";
 
 			start = gettime_();
 			if (mode == 1) {
@@ -237,13 +237,14 @@ public:
 				if (world.rank() == 0) {
 					grad_norm = cblas_l2_norm(instance.m, &gradient[0], 1);
 					epsilon = 0.05 * grad_norm * sqrt(instance.lambda / 10.0);
-					if (grad_norm < 1e-8) {
+					if (grad_norm < 1e-10) {
 						flag[1] = 0;
 					}
 					cblas_dcopy(instance.m, &gradient[0], 1, &r[0], 1);
 					// s= p^-1 r
 					if (batchSizeP == 0)
 						ifNoPreconditioning(instance.m, r, s);
+						//SGDSolver(instance, instance.m, r, s, diag);
 					else
 						WoodburySolverForDisco(instance, instance.m, batchSizeP, woodburyH, r, s, diag);
 
@@ -295,6 +296,7 @@ public:
 						// solve linear system to get new s
 						if (batchSizeP == 0)
 							ifNoPreconditioning(instance.m, r, s);
+							//SGDSolver(instance, instance.m, r, s, diag);
 						else
 							WoodburySolverForDisco(instance, instance.m, batchSizeP, woodburyH, r, s, diag);
 
@@ -384,7 +386,7 @@ public:
 					break;
 			}
 			else if (mode == 2) {
-				if (constantSum[6] < 1e-8) {
+				if (constantSum[6] < 1e-10) {
 					break;
 				}
 			}

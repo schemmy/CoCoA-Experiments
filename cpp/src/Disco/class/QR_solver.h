@@ -187,6 +187,47 @@ void CGSolver(std::vector<double> &A, int n,
 }
 
 
+void SGDSolver(ProblemData<unsigned int, double> &instance,
+               unsigned int &n, std::vector<double> &b, std::vector<double> &x, double &diag) {
+
+	double eta = 1.0;
+	double xTs = 0.0;
+	std::vector<double> gradIdx(n);
+
+	for (unsigned int iter = 0; iter < n*100; iter++) {
+
+		xTs = 0.0;
+		cblas_set_to_zero(gradIdx);
+		unsigned int idx = floor(rand() / (0.0 + RAND_MAX) * instance.n);
+
+		for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++)
+			xTs += instance.A_csr_values[i] * x[instance.A_csr_col_idx[i]];
+		for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++)
+			gradIdx[instance.A_csr_col_idx[i]] = instance.A_csr_values[i] * xTs;
+		for (unsigned int i = 0; i < n; i++) {
+			gradIdx[i] = gradIdx[i] - b[i] + diag * x[i];
+			x[i] = x[i] - eta / instance.n * gradIdx[i];
+		}
+
+	}
+	// cblas_set_to_zero(gradIdx);
+	// for (unsigned int j = 0; j < instance.n; j++) {
+	// 	unsigned int idx = j;
+	// 	xTs = 0.0;
+	// 	for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++)
+	// 		xTs += instance.A_csr_values[i] * x[instance.A_csr_col_idx[i]];
+	// 	for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++)
+	// 		gradIdx[instance.A_csr_col_idx[i]] += instance.A_csr_values[i] * xTs / instance.n;
+
+	// 	for (unsigned int i = 0; i < n; i++) {
+	// 		gradIdx[i] = gradIdx[i] - b[i] + diag * x[i];
+	// 	}
+	// }
+	// double nomNew = cblas_ddot(n, &gradIdx[0], 1, &gradIdx[0], 1);
+	// cout<< nomNew<<endl;
+
+}
+
 
 
 
@@ -253,7 +294,7 @@ void geneWoodburyHLogistic(ProblemData<unsigned int, double> &instance,
 
 void WoodburySolverForDiscoLogistic(ProblemData<unsigned int, double> &instance,
                                     unsigned int &n, unsigned int &p, std::vector<double> &woodburyH,
-                                    std::vector<double> &b, std::vector<double> &x, std::vector<double> &wTx, double &diag) {
+                                    std::vector<double> &b, std::vector<double> &x, std::vector<double> &wTx, double & diag) {
 
 	std::vector<double> woodburyVTy(p);
 	std::vector<double> woodburyHVTy(p);
@@ -291,7 +332,7 @@ void WoodburySolverForDiscoLogistic(ProblemData<unsigned int, double> &instance,
 
 void WoodburySolverForOcsidLogistic(ProblemData<unsigned int, double> &preConData, ProblemData<unsigned int, double> &instance,
                                     unsigned int &n, unsigned int &p, std::vector<double> &woodburyH, std::vector<double> &b, std::vector<double> &x,
-                                    std::vector<double> &wTx, double &diag, boost::mpi::communicator &world) {
+                                    std::vector<double> &wTx, double & diag, boost::mpi::communicator & world) {
 
 	std::vector<double> woodburyVTy(p);
 	std::vector<double> woodburyVTy_World(p);
@@ -330,7 +371,7 @@ void WoodburySolverForOcsidLogistic(ProblemData<unsigned int, double> &preConDat
 
 void WoodburySolverForOcsid(ProblemData<unsigned int, double> &preConData, ProblemData<unsigned int, double> &instance,
                             unsigned int &n, unsigned int &p, std::vector<double> &woodburyH, std::vector<double> &b, std::vector<double> &x,
-                            double &diag, boost::mpi::communicator &world) {
+                            double & diag, boost::mpi::communicator & world) {
 
 	std::vector<double> woodburyVTy(p);
 	std::vector<double> woodburyVTy_World(p);
@@ -361,7 +402,7 @@ void WoodburySolverForOcsid(ProblemData<unsigned int, double> &preConData, Probl
 
 void WoodburySolverForDisco(ProblemData<unsigned int, double> &instance,
                             unsigned int &n, unsigned int &p, std::vector<double> &woodburyH,
-                            std::vector<double> &b, std::vector<double> &x, double &diag) {
+                            std::vector<double> &b, std::vector<double> &x, double & diag) {
 
 	std::vector<double> woodburyVTy(p);
 	std::vector<double> woodburyHVTy(p);
