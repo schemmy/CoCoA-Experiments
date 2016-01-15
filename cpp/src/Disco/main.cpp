@@ -37,7 +37,6 @@ int main(int argc, char *argv[]) {
 	ProblemData<unsigned int, double> instance;
 	instance.theta = ctx.tmp;
 	instance.lambda = ctx.lambda;
-
 	ProblemData<unsigned int, double> preConData;
 
 	int mode = distributedSettings.LocalMethods;
