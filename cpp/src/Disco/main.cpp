@@ -39,6 +39,7 @@ int main(int argc, char *argv[]) {
 	instance.lambda = ctx.lambda;
 	ProblemData<unsigned int, double> preConData;
 
+
 	int mode = distributedSettings.LocalMethods;
 	if (mode == 1) {
 		loadDistributedSparseSVMRowData(ctx.matrixAFile, world.rank(), world.size(), instance, false);
