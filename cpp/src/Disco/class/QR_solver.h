@@ -54,9 +54,9 @@ void geneRandIdx(std::vector<unsigned int> oneToN, std::vector<unsigned int> &ra
 				index++;
 			}
 		}
-
-
 	}
+
+			//for (int i = 0; i < size; ++i) cout<<randSet[i]<<"  ";
 }
 
 
@@ -386,7 +386,8 @@ void WoodburySolverForOcsid(ProblemData<unsigned int, double> &preConData, Probl
 	}
 	vall_reduce(world, woodburyVTy, woodburyVTy_World);
 
-	CGSolver(woodburyH, p, woodburyVTy_World, woodburyHVTy);
+	//CGSolver(woodburyH, p, woodburyVTy_World, woodburyHVTy);
+	QRGramSchmidtSolver(woodburyH, p, woodburyVTy, woodburyHVTy);
 
 	for (unsigned int idx = 0; idx < p; idx++) {
 		for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
@@ -409,14 +410,15 @@ void WoodburySolverForDisco(ProblemData<unsigned int, double> &instance, unsigne
 	std::vector<double> woodburyZHVTy(n);
 
 
-	for (unsigned int j = 0; j < p; j++) {
-		unsigned int idx = randIdx[j];
+	for (unsigned int idx = 0; idx < p; idx++) {
+		//unsigned int idx = randIdx[j];
 		for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
 			woodburyVTy[idx] += instance.A_csr_values[i] * instance.b[idx] * b[instance.A_csr_col_idx[i]] / diag / p;
 		}
 	}
 
-	CGSolver(woodburyH, p, woodburyVTy, woodburyHVTy);
+	//CGSolver(woodburyH, p, woodburyVTy, woodburyHVTy);
+	QRGramSchmidtSolver(woodburyH, p, woodburyVTy, woodburyHVTy);
 
 	for (unsigned int idx = 0; idx < p; idx++) {
 		for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
