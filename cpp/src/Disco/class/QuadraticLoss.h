@@ -125,8 +125,8 @@ public:
 
 		cblas_set_to_zero(Hu);
 
-		for (unsigned int i = 0; i < batchSizeH; i++) {
-			unsigned int idx = randIdx[i];
+		for (unsigned int j = 0; j < batchSizeH; j++) {
+			unsigned int idx = randIdx[j];
 			for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
 				Hu[instance.A_csr_col_idx[i]] += instance.A_csr_values[i] * instance.b[idx] * xTu[idx] / batchSizeH;
 			}
@@ -246,7 +246,7 @@ public:
 						ifNoPreconditioning(instance.m, r, s);
 						//SGDSolver(instance, instance.m, r, s, diag);
 					else
-						WoodburySolverForDisco(instance, instance.m, batchSizeP, woodburyH, r, s, diag);
+						WoodburySolverForDisco(instance, instance.m, randIdx, batchSizeP, woodburyH, r, s, diag);
 
 					cblas_dcopy(instance.m, &s[0], 1, &u[0], 1);
 				}
@@ -298,7 +298,7 @@ public:
 							ifNoPreconditioning(instance.m, r, s);
 							//SGDSolver(instance, instance.m, r, s, diag);
 						else
-							WoodburySolverForDisco(instance, instance.m, batchSizeP, woodburyH, r, s, diag);
+							WoodburySolverForDisco(instance, instance.m, randIdx, batchSizeP, woodburyH, r, s, diag);
 
 						double nom_new = cblas_ddot(instance.m, &r[0], 1, &s[0], 1);
 						beta = nom_new / nom;

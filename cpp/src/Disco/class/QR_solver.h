@@ -400,8 +400,8 @@ void WoodburySolverForOcsid(ProblemData<unsigned int, double> &preConData, Probl
 	}
 }
 
-void WoodburySolverForDisco(ProblemData<unsigned int, double> &instance,
-                            unsigned int &n, unsigned int &p, std::vector<double> &woodburyH,
+void WoodburySolverForDisco(ProblemData<unsigned int, double> &instance, unsigned int &n,
+                            std::vector<unsigned int> &randIdx, unsigned int &p, std::vector<double> &woodburyH,
                             std::vector<double> &b, std::vector<double> &x, double & diag) {
 
 	std::vector<double> woodburyVTy(p);
@@ -409,7 +409,8 @@ void WoodburySolverForDisco(ProblemData<unsigned int, double> &instance,
 	std::vector<double> woodburyZHVTy(n);
 
 
-	for (unsigned int idx = 0; idx < p; idx++) {
+	for (unsigned int j = 0; j < p; j++) {
+		unsigned int idx = randIdx[j];
 		for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
 			woodburyVTy[idx] += instance.A_csr_values[i] * instance.b[idx] * b[instance.A_csr_col_idx[i]] / diag / p;
 		}

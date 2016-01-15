@@ -147,8 +147,8 @@ public:
 		double temp, scalar;
 		cblas_set_to_zero(Hu);
 
-		for (unsigned int i = 0; i < batchSizeH ; i++) {
-			unsigned int idx = randIdx[i];
+		for (unsigned int j = 0; j < batchSizeH ; j++) {
+			unsigned int idx = randIdx[j];
 			temp = exp(-xTw[idx]);
 			scalar = temp / (temp + 1) / (temp + 1);
 			for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++)
