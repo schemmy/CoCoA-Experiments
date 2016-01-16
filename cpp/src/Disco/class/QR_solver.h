@@ -194,7 +194,7 @@ void SGDSolver(ProblemData<unsigned int, double> &instance,
 	double xTs = 0.0;
 	std::vector<double> gradIdx(n);
 
-	for (unsigned int iter = 0; iter < n*100; iter++) {
+	for (unsigned int iter = 0; iter < instance.n; iter++) {
 
 		xTs = 0.0;
 		cblas_set_to_zero(gradIdx);
