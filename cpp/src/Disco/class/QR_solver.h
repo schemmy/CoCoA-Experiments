@@ -56,7 +56,7 @@ void geneRandIdx(std::vector<unsigned int> oneToN, std::vector<unsigned int> &ra
 		}
 	}
 
-			//for (int i = 0; i < size; ++i) cout<<randSet[i]<<"  ";
+	//for (int i = 0; i < size; ++i) cout<<randSet[i]<<"  ";
 }
 
 
@@ -194,41 +194,43 @@ void SGDSolver(ProblemData<unsigned int, double> &instance,
 	double xTs = 0.0;
 	std::vector<double> gradIdx(n);
 	std::vector<double> gradAvg(n);
+	double nomNew;
 
-	for (unsigned int iter = 0; iter < instance.n; iter++) {
-
-		xTs = 0.0;
-		cblas_set_to_zero(gradIdx);
-		unsigned int idx = floor(rand() / (0.0 + RAND_MAX) * instance.n);
-
-		for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++)
-			xTs += instance.A_csr_values[i] * x[instance.A_csr_col_idx[i]];
-		for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++)
-			gradIdx[instance.A_csr_col_idx[i]] = instance.A_csr_values[i] * xTs;
-		for (unsigned int i = 0; i < n; i++){
-			gradAvg[i] -= gradIdx[i];
-			gradIdx[i] = gradIdx[i] - b[i] * instance.n + diag * x[i] * instance.n;
-			gradAvg[i] += gradIdx[i];		
-			x[i] -= eta / instance.n * gradIdx[i];
-		}
+	while (nomNew > 1e-12) {
 		
+		for (unsigned int iter = 0; iter < instance.n; iter++) {
 
-	}
-	cblas_set_to_zero(gradIdx);
-	for (unsigned int j = 0; j < instance.n; j++) {
-		unsigned int idx = j;
-		xTs = 0.0;
-		for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++)
-			xTs += instance.A_csr_values[i] * x[instance.A_csr_col_idx[i]];
-		for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++)
-			gradIdx[instance.A_csr_col_idx[i]] += instance.A_csr_values[i] * xTs / instance.n;
+			xTs = 0.0;
+			cblas_set_to_zero(gradIdx);
+			unsigned int idx = floor(rand() / (0.0 + RAND_MAX) * instance.n);
 
-		for (unsigned int i = 0; i < n; i++) {
-			gradIdx[i] = gradIdx[i] - b[i] + diag * x[i];
+			for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++)
+				xTs += instance.A_csr_values[i] * x[instance.A_csr_col_idx[i]];
+			for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++)
+				gradIdx[instance.A_csr_col_idx[i]] = instance.A_csr_values[i] * xTs;
+			for (unsigned int i = 0; i < n; i++) {
+				gradAvg[i] -= gradIdx[i];
+				gradIdx[i] = gradIdx[i] - b[i] * instance.n + diag * x[i] * instance.n;
+				gradAvg[i] += gradIdx[i];
+				x[i] -= eta / instance.n * gradIdx[i];
+			}
 		}
+		cblas_set_to_zero(gradIdx);
+		for (unsigned int j = 0; j < instance.n; j++) {
+			unsigned int idx = j;
+			xTs = 0.0;
+			for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++)
+				xTs += instance.A_csr_values[i] * x[instance.A_csr_col_idx[i]];
+			for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++)
+				gradIdx[instance.A_csr_col_idx[i]] += instance.A_csr_values[i] * xTs / instance.n;
+
+			for (unsigned int i = 0; i < n; i++) {
+				gradIdx[i] = gradIdx[i] - b[i] + diag * x[i];
+			}
+		}
+		nomNew = cblas_ddot(n, &gradIdx[0], 1, &gradIdx[0], 1);
 	}
-	double nomNew = cblas_ddot(n, &gradIdx[0], 1, &gradIdx[0], 1);
-	cout<< nomNew<<endl;
+	//cout<< nomNew<<endl;
 
 }
 

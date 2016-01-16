@@ -243,8 +243,8 @@ public:
 					cblas_dcopy(instance.m, &gradient[0], 1, &r[0], 1);
 					// s= p^-1 r
 					if (batchSizeP == 0)
-						ifNoPreconditioning(instance.m, r, s);
-						//SGDSolver(instance, instance.m, r, s, diag);
+						//ifNoPreconditioning(instance.m, r, s);
+						SGDSolver(instance, instance.m, r, s, diag);
 					else
 						WoodburySolverForDisco(instance, instance.m, randIdx, batchSizeP, woodburyH, r, s, diag);
 
@@ -295,8 +295,8 @@ public:
 						}
 						// solve linear system to get new s
 						if (batchSizeP == 0)
-							ifNoPreconditioning(instance.m, r, s);
-							//SGDSolver(instance, instance.m, r, s, diag);
+							//ifNoPreconditioning(instance.m, r, s);
+							SGDSolver(instance, instance.m, r, s, diag);
 						else
 							WoodburySolverForDisco(instance, instance.m, randIdx, batchSizeP, woodburyH, r, s, diag);
 
