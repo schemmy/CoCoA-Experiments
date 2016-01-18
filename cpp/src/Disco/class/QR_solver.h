@@ -194,7 +194,7 @@ void SGDSolver(ProblemData<unsigned int, double> &instance,
 	double xTs = 0.0;
 	std::vector<double> gradIdx(n * instance.n);
 	std::vector<double> gradAvg(n);
-	double nomNew = 1.0;
+	double nomNew = 1.0; 
 
 	while (nomNew > 1e-25) {
 
