@@ -184,8 +184,10 @@ int loadDistributedByFeaturesSVMRowData(string inputFile, int file, int totalFil
 						}
 
 						processedSamples++;
-						//part.b[processedSamples] = ddval; // used for a1a data
-						part.b[processedSamples] = (-1.5 + ddval) * 2.0; // used for covtype data
+						part.b[processedSamples] = ddval; // used for a1a data
+						if (ddval != -1 && ddval != 1)
+							cout << part.b[processedSamples] << endl;
+						//part.b[processedSamples] = (-1.5 + ddval) * 2.0; // used for covtype data
 						part.A_csr_row_ptr[processedSamples] = nnzPossition;
 
 						pos++;
@@ -388,8 +390,8 @@ void readPartDataForPreCondi(string inputFile, ProblemData<L, D> & part, L Neede
 						}
 
 						processedSamples++;
-						//part.b[processedSamples] = ddval; // used for a1a data
-						part.b[processedSamples] = (-1.5 + ddval) * 2.0; // used for covtype data
+						part.b[processedSamples] = ddval; // used for a1a data
+						//part.b[processedSamples] = (-1.5 + ddval) * 2.0; // used for covtype data
 						part.A_csr_row_ptr[processedSamples] = nnzPossition;
 
 						pos++;
