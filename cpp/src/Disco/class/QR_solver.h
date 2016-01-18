@@ -187,55 +187,6 @@ void CGSolver(std::vector<double> &A, int n,
 }
 
 
-void SGDSolver(ProblemData<unsigned int, double> &instance,
-               unsigned int &n, std::vector<double> &b, std::vector<double> &x, double &diag) {
-
-	double eta = 1.0/100;
-	double xTs = 0.0;
-	std::vector<double> gradIdx(n * instance.n);
-	std::vector<double> gradAvg(n);
-	double nomNew = 1.0;
-
-	while (nomNew > 1e-25) {
-
-		for (unsigned int iter = 0; iter < instance.n; iter++) {
-
-			xTs = 0.0;
-			unsigned int idx = floor(rand() / (0.0 + RAND_MAX) * instance.n);
-			for (unsigned int i = 0; i < n; i++) {
-				gradAvg[i] -= gradIdx[idx * n + i];
-				gradIdx[idx * n + i] = 0.0;
-			}
-			for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++)
-				xTs += instance.A_csr_values[i] * x[instance.A_csr_col_idx[i]];
-			for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++)
-				gradIdx[idx * n + instance.A_csr_col_idx[i]] = instance.A_csr_values[i] * xTs;
-			for (unsigned int i = 0; i < n; i++) {
-				gradIdx[idx * n + i] = gradIdx[idx * n + i] 
-												- b[i]  + diag * x[i];
-				gradAvg[i] += gradIdx[idx * n + i];
-				x[i] -= eta / instance.n * gradAvg[i];
-			}
-		}
-		std::vector<double> grad(n);
-		for (unsigned int j = 0; j < instance.n; j++) {
-			unsigned int idx = j;
-			xTs = 0.0;
-			for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++)
-				xTs += instance.A_csr_values[i] * x[instance.A_csr_col_idx[i]];
-			for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++)
-				grad[instance.A_csr_col_idx[i]] += instance.A_csr_values[i] * xTs / instance.n;
-		}
-		for (unsigned int i = 0; i < n; i++) {
-			grad[i] = grad[i] - b[i] + diag * x[i];
-		}
-		nomNew = cblas_ddot(n, &grad[0], 1, &grad[0], 1);
-		//cout << nomNew << endl;
-	}
-
-}
-
-
 
 
 void geneWoodburyH(ProblemData<unsigned int, double> &instance,
