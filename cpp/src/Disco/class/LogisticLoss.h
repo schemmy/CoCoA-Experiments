@@ -18,6 +18,10 @@ public:
 
 	virtual ~LogisticLoss() {}
 
+	virtual int getName(){
+		return 2;
+	}
+
 	virtual void computeVectorTimesData(std::vector<double> &vec, ProblemData<unsigned int, double> &instance,
 	                                    std::vector<double> &result, boost::mpi::communicator &world, int &mode) {
 
@@ -172,6 +176,39 @@ public:
 
 
 
+	virtual void getWoodburyH(ProblemData<unsigned int, double> &instance,
+                          unsigned int &p, std::vector<double> &woodburyH, std::vector<double> &wTx, double & diag) {
+
+		double temp, scalar;
+		cblas_set_to_zero(woodburyH);
+
+		for (unsigned int idx1 = 0; idx1 < p; idx1++) {
+
+			temp = exp(-wTx[idx1]);
+			scalar = temp / (temp + 1) / (temp + 1);	
+
+			for (unsigned int idx2 = 0; idx2 < p; idx2++) {
+
+				unsigned int i = instance.A_csr_row_ptr[idx1];
+				unsigned int j = instance.A_csr_row_ptr[idx2];
+				while (i < instance.A_csr_row_ptr[idx1 + 1] && j < instance.A_csr_row_ptr[idx2 + 1]) {
+					if (instance.A_csr_col_idx[i] == instance.A_csr_col_idx[j]) {
+						woodburyH[idx1 * p + idx2] += instance.A_csr_values[i]  * instance.A_csr_values[j]
+						                              * instance.b[idx1] * instance.b[idx2] / diag / p * scalar;
+						i++;
+						j++;
+					}
+					else if (instance.A_csr_col_idx[i] < instance.A_csr_col_idx[j])
+						i++;
+					else
+						j++;
+				}
+			}
+		}
+		for (unsigned int idx = 0; idx < p; idx++)
+			woodburyH[idx * p + idx] += 1.0;
+
+	}
 
 
 	virtual void distributed_PCG(std::vector<double> &w, ProblemData<unsigned int, double> &instance,
@@ -227,6 +264,7 @@ public:
 			grad_norm = cblas_l2_norm(instance.m, &gradient[0], 1);
 			constantLocal[6] = grad_norm * grad_norm;
 			vall_reduce(world, constantLocal, constantSum);
+			constantSum[6] = sqrt(constantSum[6]);
 			if (world.rank() == 0) {
 				printf("%ith runs %i CG iterations, the norm of gradient is %E, the objective is %E\n",
 				       0, 0, constantSum[6], objective[0]);
@@ -397,6 +435,7 @@ public:
 				vall_reduce(world, constantLocal, constantSum);
 				deltak = sqrt(constantSum[3] + alpha * constantSum[4]);
 				cblas_daxpy(instance.m, -1.0 / (1.0 + deltak), &vk[0], 1, &w[0], 1);
+				constantSum[6] = sqrt(constantSum[6]);
 			}
 
 			finish = gettime_();

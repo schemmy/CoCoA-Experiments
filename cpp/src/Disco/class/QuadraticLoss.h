@@ -18,6 +18,10 @@ public:
 
 	virtual ~QuadraticLoss() {}
 
+	virtual int getName(){
+		return 1;
+	}
+
 	virtual void computeVectorTimesData(std::vector<double> &vec, ProblemData<unsigned int, double> &instance,
 	                                    std::vector<double> &result, boost::mpi::communicator &world, int &mode) {
 
@@ -146,6 +150,34 @@ public:
 
 	}
 
+
+
+	virtual void getWoodburyH(ProblemData<unsigned int, double> &instance,
+    	               unsigned int &p, std::vector<double> &woodburyH, double & diag) {
+
+		cblas_set_to_zero(woodburyH);
+		for (unsigned int idx1 = 0; idx1 < p; idx1++) {
+			for (unsigned int idx2 = 0; idx2 < p; idx2++) {
+				unsigned int i = instance.A_csr_row_ptr[idx1];
+				unsigned int j = instance.A_csr_row_ptr[idx2];
+				while (i < instance.A_csr_row_ptr[idx1 + 1] && j < instance.A_csr_row_ptr[idx2 + 1]) {
+					if (instance.A_csr_col_idx[i] == instance.A_csr_col_idx[j]) {
+						woodburyH[idx1 * p + idx2] += instance.A_csr_values[i] * instance.A_csr_values[j]
+						                              * instance.b[idx1] * instance.b[idx2] / diag / p;
+						i++;
+						j++;
+					}
+					else if (instance.A_csr_col_idx[i] < instance.A_csr_col_idx[j])
+						i++;
+					else
+						j++;
+				}
+			}
+		}
+		for (unsigned int idx = 0; idx < p; idx++)
+			woodburyH[idx * p + idx] += 1.0;
+
+	}
 
 
 	virtual void distributed_PCG(std::vector<double> &w, ProblemData<unsigned int, double> &instance,
