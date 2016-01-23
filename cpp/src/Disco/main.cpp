@@ -16,6 +16,7 @@
 #include "class/LossFunction.h"
 #include "class/QuadraticLoss.h"
 #include "class/LogisticLoss.h"
+#include "class/CG.h"
 #include  <sstream>
 
 int main(int argc, char *argv[]) {
@@ -41,7 +42,7 @@ int main(int argc, char *argv[]) {
 
 
 	int mode = distributedSettings.LocalMethods;
-	if (mode == 1) {
+	if (mode == 1 || mode == 3) {
 		loadDistributedSparseSVMRowData(ctx.matrixAFile, world.rank(), world.size(), instance, false);
 		unsigned int finalM;
 		vall_reduce_maximum(world, &instance.m, &finalM, 1);
@@ -58,10 +59,8 @@ int main(int argc, char *argv[]) {
 
 	std::vector<double> w(instance.m);
 	//for (unsigned int i = 0; i < instance.m; i++) w[i] = 0.5;
-	std::vector<double> vk(instance.m);
 	double rho = 1.0 / instance.n;
 	double mu = 0.1;
-	double deltak = 0.0;
 
 	int loss = distributedSettings.lossFunction;
 
@@ -86,13 +85,29 @@ int main(int argc, char *argv[]) {
 	default:
 		break;
 	}
+	
+	CG<unsigned int, double> CGmethod(instance, batchsizeP, batchsizeH, mu, lf);
+	switch (mode) {
+	case 1:
+		CGmethod.CGDistributedBySamples(w, instance, preConData, world, logFile);
+		break;
+	case 2:
+		CGmethod.CGDistributedByFeatures(w, instance, preConData, world, logFile);
+		break;
+	case 3:
+		CGmethod.CG_SAG(w, instance, preConData, world, logFile);
+		break;
+	default:
+		break;
+	}	
+
+	//lf->distributed_PCG(w, instance, preConData, mu, vk, deltak, batchsizeP, batchsizeH, world, logFile, mode);
 
 	// if (mode == 1) {
 	// 	if (world.rank() == 0)
 	// 		lf->computeInitialW(w, instance, rho, world.rank());
 	// }
 
-	lf->distributed_PCG(w, instance, preConData, mu, vk, deltak, batchsizeP, batchsizeH, world, logFile, mode);
 	//double nn = cblas_l2_norm(instance.m, &w[0], 1) * cblas_l2_norm(instance.m, &w[0], 1); cout<<nn<<endl;
 	logFile.close();
 	MPI::Finalize();

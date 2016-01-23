@@ -19,9 +19,10 @@ public:
 	virtual void init(ProblemData<L, D> & instance) {
 	}
 
+	virtual int getName() { return 0;}
 
 	virtual void computeVectorTimesData(std::vector<double> &vec, ProblemData<unsigned int, double> &instance,
-	                                    std::vector<double> &result, std::vector<double> &localVec, boost::mpi::communicator &world, int &mode) {
+	                                    std::vector<double> &result, boost::mpi::communicator &world, int &mode) {
 	}
 
 	virtual void computeObjective(std::vector<double> &w, ProblemData<unsigned int, double> &instance,
@@ -38,9 +39,10 @@ public:
 	}
 
 
-	virtual void computeHessianTimesAU(std::vector<double> &u, std::vector<double> &Hu,
-	                                   std::vector<double> &xTu, ProblemData<unsigned int, double> &instance,
-	                                   unsigned int &batchSizeH, boost::mpi::communicator & world, int &mode) {
+	virtual void computeHessianTimesAU(std::vector<double> &u, std::vector<double> &Hu, std::vector<double> &xTw,
+	                                   std::vector<double> &xTu, ProblemData<unsigned int, double> &instance, 
+	                                   unsigned int &batchSizeH,  std::vector<unsigned int> &randIdx,
+	                                   boost::mpi::communicator & world, int &mode) {
 	}
 
 	virtual void distributed_PCG(std::vector<double> &w, ProblemData<unsigned int, double> &instance,
@@ -49,10 +51,18 @@ public:
 	                             boost::mpi::communicator &world, std::ofstream &logFile, int &mode) {
 	}
 
-	virtual void output(ProblemData<unsigned int, double> &instance, int &iter, int &inner_iter, double & elapsedTime,
-	                    std::vector<double> &constantSum, std::vector<double> &objective, double & grad_norm,
-	                    std::ofstream & logFile, boost::mpi::communicator & world, int &mode) {
+
+	virtual void getWoodburyH(ProblemData<unsigned int, double> &instance,
+	                          unsigned int &p, std::vector<double> &woodburyH, std::vector<double> &wTx,  double & diag) {
 	}
+
+	virtual void WoodburySolver(ProblemData<unsigned int, double> &instance, unsigned int &n,
+	                            std::vector<unsigned int> &randIdx, unsigned int &p, std::vector<double> &woodburyH,
+	                            std::vector<double> &b, std::vector<double> &x, std::vector<double> &wTx, double & diag,
+	                            boost::mpi::communicator & world, int &mode) {
+	}
+
+
 
 	virtual void computeInitialW(std::vector<double> &w, ProblemData<unsigned int, double> &instance,
 	                             double & rho, int rank) {

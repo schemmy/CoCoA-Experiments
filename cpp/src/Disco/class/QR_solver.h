@@ -196,7 +196,7 @@ void SGDSolver(ProblemData<unsigned int, double> &instance,
 	std::vector<double> gradAvg(n);
 	double nomNew = 1.0;
 
-	while (nomNew > 1e-25) {
+	while (nomNew > 1e-10) {
 
 		for (unsigned int iter = 0; iter < instance.n; iter++) {
 
@@ -217,6 +217,7 @@ void SGDSolver(ProblemData<unsigned int, double> &instance,
 				x[i] -= eta / instance.n * gradAvg[i];
 			}
 		}
+
 		std::vector<double> grad(n);
 		for (unsigned int j = 0; j < instance.n; j++) {
 			unsigned int idx = j;
@@ -230,7 +231,8 @@ void SGDSolver(ProblemData<unsigned int, double> &instance,
 			grad[i] = grad[i] - b[i] + diag * x[i];
 		}
 		nomNew = cblas_ddot(n, &grad[0], 1, &grad[0], 1);
-		//cout << nomNew << endl;
+		cout << nomNew << endl;
+
 	}
 
 }
@@ -238,208 +240,208 @@ void SGDSolver(ProblemData<unsigned int, double> &instance,
 
 
 
-void geneWoodburyH(ProblemData<unsigned int, double> &instance,
-                   unsigned int &p, std::vector<double> &woodburyH, double & diag) {
+// void geneWoodburyH(ProblemData<unsigned int, double> &instance,
+//                    unsigned int &p, std::vector<double> &woodburyH, double & diag) {
 
-	for (unsigned int idx1 = 0; idx1 < p; idx1++) {
-		for (unsigned int idx2 = 0; idx2 < p; idx2++) {
-			unsigned int i = instance.A_csr_row_ptr[idx1];
-			unsigned int j = instance.A_csr_row_ptr[idx2];
-			while (i < instance.A_csr_row_ptr[idx1 + 1] && j < instance.A_csr_row_ptr[idx2 + 1]) {
-				if (instance.A_csr_col_idx[i] == instance.A_csr_col_idx[j]) {
-					woodburyH[idx1 * p + idx2] += instance.A_csr_values[i] * instance.A_csr_values[j]
-					                              * instance.b[idx1] * instance.b[idx2] / diag / p;
-					i++;
-					j++;
-				}
-				else if (instance.A_csr_col_idx[i] < instance.A_csr_col_idx[j])
-					i++;
-				else
-					j++;
-			}
-		}
-	}
-	for (unsigned int idx = 0; idx < p; idx++)
-		woodburyH[idx * p + idx] += 1.0;
+// 	for (unsigned int idx1 = 0; idx1 < p; idx1++) {
+// 		for (unsigned int idx2 = 0; idx2 < p; idx2++) {
+// 			unsigned int i = instance.A_csr_row_ptr[idx1];
+// 			unsigned int j = instance.A_csr_row_ptr[idx2];
+// 			while (i < instance.A_csr_row_ptr[idx1 + 1] && j < instance.A_csr_row_ptr[idx2 + 1]) {
+// 				if (instance.A_csr_col_idx[i] == instance.A_csr_col_idx[j]) {
+// 					woodburyH[idx1 * p + idx2] += instance.A_csr_values[i] * instance.A_csr_values[j]
+// 					                              * instance.b[idx1] * instance.b[idx2] / diag / p;
+// 					i++;
+// 					j++;
+// 				}
+// 				else if (instance.A_csr_col_idx[i] < instance.A_csr_col_idx[j])
+// 					i++;
+// 				else
+// 					j++;
+// 			}
+// 		}
+// 	}
+// 	for (unsigned int idx = 0; idx < p; idx++)
+// 		woodburyH[idx * p + idx] += 1.0;
 
-}
-
-
-void geneWoodburyHLogistic(ProblemData<unsigned int, double> &instance,
-                           unsigned int &p, std::vector<double> &woodburyH, std::vector<double> &wTx, double & diag) {
-
-	double temp, scalar;
-	cblas_set_to_zero(woodburyH);
-
-	for (unsigned int idx1 = 0; idx1 < p; idx1++) {
-
-		temp = exp(-wTx[idx1]);
-		scalar = temp / (temp + 1) / (temp + 1);
-
-		for (unsigned int idx2 = 0; idx2 < p; idx2++) {
-
-			unsigned int i = instance.A_csr_row_ptr[idx1];
-			unsigned int j = instance.A_csr_row_ptr[idx2];
-			while (i < instance.A_csr_row_ptr[idx1 + 1] && j < instance.A_csr_row_ptr[idx2 + 1]) {
-				if (instance.A_csr_col_idx[i] == instance.A_csr_col_idx[j]) {
-					woodburyH[idx1 * p + idx2] += instance.A_csr_values[i]  * instance.A_csr_values[j]
-					                              * instance.b[idx1] * instance.b[idx2] / diag / p * scalar;
-					i++;
-					j++;
-				}
-				else if (instance.A_csr_col_idx[i] < instance.A_csr_col_idx[j])
-					i++;
-				else
-					j++;
-			}
-		}
-	}
-	for (unsigned int idx = 0; idx < p; idx++)
-		woodburyH[idx * p + idx] += 1.0;
-
-}
-
-void WoodburySolverForDiscoLogistic(ProblemData<unsigned int, double> &instance,
-                                    unsigned int &n, unsigned int &p, std::vector<double> &woodburyH,
-                                    std::vector<double> &b, std::vector<double> &x, std::vector<double> &wTx, double & diag) {
-
-	std::vector<double> woodburyVTy(p);
-	std::vector<double> woodburyHVTy(p);
-	std::vector<double> woodburyZHVTy(n);
-
-	double temp, scalar;
-
-	for (unsigned int idx = 0; idx < p; idx++) {
-
-		temp = exp(-wTx[idx]);
-		scalar = temp / (temp + 1) / (temp + 1);
-		for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
-			woodburyVTy[idx] += instance.A_csr_values[i] * instance.b[idx] * b[instance.A_csr_col_idx[i]]
-			                    / diag / p  * scalar;
-		}
-	}
-
-	//CGSolver(woodburyH, p, woodburyVTy_World, woodburyHVTy);
-	//gaussEliminationSolver(woodburyH, p, woodburyVTy, woodburyHVTy);
-	QRGramSchmidtSolver(woodburyH, p, woodburyVTy, woodburyHVTy);
-
-	for (unsigned int idx = 0; idx < p; idx++) {
-
-		for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
-			woodburyZHVTy[instance.A_csr_col_idx[i]] += instance.A_csr_values[i] * instance.b[idx] / diag
-			        * woodburyHVTy[idx];
-		}
-	}
-
-	for (unsigned int i = 0; i < n; i++) {
-		x[i] = b[i] / diag - woodburyZHVTy[i];
-	}
-
-}
-
-void WoodburySolverForOcsidLogistic(ProblemData<unsigned int, double> &preConData, ProblemData<unsigned int, double> &instance,
-                                    unsigned int &n, unsigned int &p, std::vector<double> &woodburyH, std::vector<double> &b, std::vector<double> &x,
-                                    std::vector<double> &wTx, double & diag, boost::mpi::communicator & world) {
-
-	std::vector<double> woodburyVTy(p);
-	std::vector<double> woodburyVTy_World(p);
-	std::vector<double> woodburyHVTy(p);
-	std::vector<double> woodburyZHVTy(n);
-
-	double temp, scalar;
-
-	for (unsigned int idx = 0; idx < p; idx++) {
-
-		temp = exp(-wTx[idx]);
-		scalar = temp / (temp + 1) / (temp + 1);
-		for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
-			woodburyVTy[idx] += instance.A_csr_values[i] * instance.b[idx] * b[instance.A_csr_col_idx[i]] / diag / p * scalar;
-		}
-	}
-	vall_reduce(world, woodburyVTy, woodburyVTy_World);
+// }
 
 
-	//CGSolver(woodburyH, p, woodburyVTy_World, woodburyHVTy);
-	//gaussEliminationSolver(woodburyH, p, woodburyVTy, woodburyHVTy);
-	QRGramSchmidtSolver(woodburyH, p, woodburyVTy, woodburyHVTy);
+// void geneWoodburyHLogistic(ProblemData<unsigned int, double> &instance,
+//                            unsigned int &p, std::vector<double> &woodburyH, std::vector<double> &wTx, double & diag) {
 
-	for (unsigned int idx = 0; idx < p; idx++) {
-		for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
-			woodburyZHVTy[instance.A_csr_col_idx[i]] += instance.A_csr_values[i] * instance.b[idx]
-			        / diag * woodburyHVTy[idx];
-		}
-	}
+// 	double temp, scalar;
+// 	cblas_set_to_zero(woodburyH);
 
-	for (unsigned int i = 0; i < n; i++) {
-		x[i] = b[i] / diag - woodburyZHVTy[i];
-	}
-}
+// 	for (unsigned int idx1 = 0; idx1 < p; idx1++) {
 
+// 		temp = exp(-wTx[idx1]);
+// 		scalar = temp / (temp + 1) / (temp + 1);
 
-void WoodburySolverForOcsid(ProblemData<unsigned int, double> &preConData, ProblemData<unsigned int, double> &instance,
-                            unsigned int &n, unsigned int &p, std::vector<double> &woodburyH, std::vector<double> &b, std::vector<double> &x,
-                            double & diag, boost::mpi::communicator & world) {
+// 		for (unsigned int idx2 = 0; idx2 < p; idx2++) {
 
-	std::vector<double> woodburyVTy(p);
-	std::vector<double> woodburyVTy_World(p);
-	std::vector<double> woodburyHVTy(p);
-	std::vector<double> woodburyZHVTy(n);
+// 			unsigned int i = instance.A_csr_row_ptr[idx1];
+// 			unsigned int j = instance.A_csr_row_ptr[idx2];
+// 			while (i < instance.A_csr_row_ptr[idx1 + 1] && j < instance.A_csr_row_ptr[idx2 + 1]) {
+// 				if (instance.A_csr_col_idx[i] == instance.A_csr_col_idx[j]) {
+// 					woodburyH[idx1 * p + idx2] += instance.A_csr_values[i]  * instance.A_csr_values[j]
+// 					                              * instance.b[idx1] * instance.b[idx2] / diag / p * scalar;
+// 					i++;
+// 					j++;
+// 				}
+// 				else if (instance.A_csr_col_idx[i] < instance.A_csr_col_idx[j])
+// 					i++;
+// 				else
+// 					j++;
+// 			}
+// 		}
+// 	}
+// 	for (unsigned int idx = 0; idx < p; idx++)
+// 		woodburyH[idx * p + idx] += 1.0;
 
-
-	for (unsigned int idx = 0; idx < p; idx++) {
-		for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
-			woodburyVTy[idx] += instance.A_csr_values[i] * instance.b[idx] * b[instance.A_csr_col_idx[i]] / diag / p;
-		}
-	}
-	vall_reduce(world, woodburyVTy, woodburyVTy_World);
-
-	//CGSolver(woodburyH, p, woodburyVTy_World, woodburyHVTy);
-	QRGramSchmidtSolver(woodburyH, p, woodburyVTy, woodburyHVTy);
-
-	for (unsigned int idx = 0; idx < p; idx++) {
-		for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
-			woodburyZHVTy[instance.A_csr_col_idx[i]] += instance.A_csr_values[i] * instance.b[idx]
-			        / diag * woodburyHVTy[idx];
-		}
-	}
-
-	for (unsigned int i = 0; i < n; i++) {
-		x[i] = b[i] / diag - woodburyZHVTy[i];
-	}
-}
-
-void WoodburySolverForDisco(ProblemData<unsigned int, double> &instance, unsigned int &n,
-                            std::vector<unsigned int> &randIdx, unsigned int &p, std::vector<double> &woodburyH,
-                            std::vector<double> &b, std::vector<double> &x, double & diag) {
-
-	std::vector<double> woodburyVTy(p);
-	std::vector<double> woodburyHVTy(p);
-	std::vector<double> woodburyZHVTy(n);
+// }
 
 
-	for (unsigned int idx = 0; idx < p; idx++) {
-		//unsigned int idx = randIdx[j];
-		for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
-			woodburyVTy[idx] += instance.A_csr_values[i] * instance.b[idx] * b[instance.A_csr_col_idx[i]] / diag / p;
-		}
-	}
 
-	//CGSolver(woodburyH, p, woodburyVTy, woodburyHVTy);
-	QRGramSchmidtSolver(woodburyH, p, woodburyVTy, woodburyHVTy);
+// void WoodburySolverForDiscoLogistic(ProblemData<unsigned int, double> &instance,
+//                                     unsigned int &n, unsigned int &p, std::vector<double> &woodburyH,
+//                                     std::vector<double> &b, std::vector<double> &x, std::vector<double> &wTx, double & diag) {
 
-	for (unsigned int idx = 0; idx < p; idx++) {
-		for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
-			woodburyZHVTy[instance.A_csr_col_idx[i]] += instance.A_csr_values[i] * instance.b[idx]
-			        / diag * woodburyHVTy[idx];
-		}
-	}
+// 	std::vector<double> woodburyVTy(p);
+// 	std::vector<double> woodburyHVTy(p);
+// 	std::vector<double> woodburyZHVTy(n);
 
-	for (unsigned int i = 0; i < n; i++) {
-		x[i] = b[i] / diag - woodburyZHVTy[i];
-	}
+// 	double temp, scalar;
 
-}
+// 	for (unsigned int idx = 0; idx < p; idx++) {
 
+// 		temp = exp(-wTx[idx]);
+// 		scalar = temp / (temp + 1) / (temp + 1);
+// 		for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
+// 			woodburyVTy[idx] += instance.A_csr_values[i] * instance.b[idx] * b[instance.A_csr_col_idx[i]]
+// 			                    / diag / p  * scalar;
+// 		}
+// 	}
+
+// 	//CGSolver(woodburyH, p, woodburyVTy_World, woodburyHVTy);
+// 	//gaussEliminationSolver(woodburyH, p, woodburyVTy, woodburyHVTy);
+// 	QRGramSchmidtSolver(woodburyH, p, woodburyVTy, woodburyHVTy);
+
+// 	for (unsigned int idx = 0; idx < p; idx++) {
+
+// 		for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
+// 			woodburyZHVTy[instance.A_csr_col_idx[i]] += instance.A_csr_values[i] * instance.b[idx] / diag
+// 			        * woodburyHVTy[idx];
+// 		}
+// 	}
+
+// 	for (unsigned int i = 0; i < n; i++) {
+// 		x[i] = b[i] / diag - woodburyZHVTy[i];
+// 	}
+
+// }
+// void WoodburySolverForOcsidLogistic(ProblemData<unsigned int, double> &preConData, ProblemData<unsigned int, double> &instance,
+//                                     unsigned int &n, unsigned int &p, std::vector<double> &woodburyH, std::vector<double> &b, std::vector<double> &x,
+//                                     std::vector<double> &wTx, double & diag, boost::mpi::communicator & world) {
+
+// 	std::vector<double> woodburyVTy(p);
+// 	std::vector<double> woodburyVTy_World(p);
+// 	std::vector<double> woodburyHVTy(p);
+// 	std::vector<double> woodburyZHVTy(n);
+
+// 	double temp, scalar;
+
+// 	for (unsigned int idx = 0; idx < p; idx++) {
+
+// 		temp = exp(-wTx[idx]);
+// 		scalar = temp / (temp + 1) / (temp + 1);
+// 		for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
+// 			woodburyVTy[idx] += instance.A_csr_values[i] * instance.b[idx] * b[instance.A_csr_col_idx[i]] / diag / p * scalar;
+// 		}
+// 	}
+// 	vall_reduce(world, woodburyVTy, woodburyVTy_World);
+
+
+// 	//CGSolver(woodburyH, p, woodburyVTy_World, woodburyHVTy);
+// 	//gaussEliminationSolver(woodburyH, p, woodburyVTy, woodburyHVTy);
+// 	QRGramSchmidtSolver(woodburyH, p, woodburyVTy_World, woodburyHVTy);
+
+// 	for (unsigned int idx = 0; idx < p; idx++) {
+// 		for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
+// 			woodburyZHVTy[instance.A_csr_col_idx[i]] += instance.A_csr_values[i] * instance.b[idx]
+// 			        / diag * woodburyHVTy[idx];
+// 		}
+// 	}
+
+// 	for (unsigned int i = 0; i < n; i++) {
+// 		x[i] = b[i] / diag - woodburyZHVTy[i];
+// 	}
+// }
+
+
+// void WoodburySolverForOcsid(ProblemData<unsigned int, double> &preConData, ProblemData<unsigned int, double> &instance,
+//                             unsigned int &n, unsigned int &p, std::vector<double> &woodburyH, std::vector<double> &b, std::vector<double> &x,
+//                             double & diag, boost::mpi::communicator & world) {
+
+// 	std::vector<double> woodburyVTy(p);
+// 	std::vector<double> woodburyVTy_World(p);
+// 	std::vector<double> woodburyHVTy(p);
+// 	std::vector<double> woodburyZHVTy(n);
+
+
+// 	for (unsigned int idx = 0; idx < p; idx++) {
+// 		for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
+// 			woodburyVTy[idx] += instance.A_csr_values[i] * instance.b[idx] * b[instance.A_csr_col_idx[i]] / diag / p;
+// 		}
+// 	}
+// 	vall_reduce(world, woodburyVTy, woodburyVTy_World);
+
+// 	//CGSolver(woodburyH, p, woodburyVTy_World, woodburyHVTy);
+// 	QRGramSchmidtSolver(woodburyH, p, woodburyVTy_World, woodburyHVTy);
+
+// 	for (unsigned int idx = 0; idx < p; idx++) {
+// 		for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
+// 			woodburyZHVTy[instance.A_csr_col_idx[i]] += instance.A_csr_values[i] * instance.b[idx]
+// 			        / diag * woodburyHVTy[idx];
+// 		}
+// 	}
+
+// 	for (unsigned int i = 0; i < n; i++) {
+// 		x[i] = b[i] / diag - woodburyZHVTy[i];
+// 	}
+// }
+
+// void WoodburySolverForDisco(ProblemData<unsigned int, double> &instance, unsigned int &n,
+//                             std::vector<unsigned int> &randIdx, unsigned int &p, std::vector<double> &woodburyH,
+//                             std::vector<double> &b, std::vector<double> &x, double & diag) {
+
+// 	std::vector<double> woodburyVTy(p);
+// 	std::vector<double> woodburyHVTy(p);
+// 	std::vector<double> woodburyZHVTy(n);
+
+
+// 	for (unsigned int idx = 0; idx < p; idx++) {
+// 		//unsigned int idx = randIdx[j];
+// 		for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
+// 			woodburyVTy[idx] += instance.A_csr_values[i] * instance.b[idx] * b[instance.A_csr_col_idx[i]] / diag / p;
+// 		}
+// 	}
+
+// 	//CGSolver(woodburyH, p, woodburyVTy, woodburyHVTy);
+// 	QRGramSchmidtSolver(woodburyH, p, woodburyVTy, woodburyHVTy);
+
+// 	for (unsigned int idx = 0; idx < p; idx++) {
+// 		for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
+// 			woodburyZHVTy[instance.A_csr_col_idx[i]] += instance.A_csr_values[i] * instance.b[idx]
+// 			        / diag * woodburyHVTy[idx];
+// 		}
+// 	}
+
+// 	for (unsigned int i = 0; i < n; i++) {
+// 		x[i] = b[i] / diag - woodburyZHVTy[i];
+// 	}
+
+// }
 
 
 
