@@ -231,7 +231,7 @@ void SGDSolver(ProblemData<unsigned int, double> &instance,
 			grad[i] = grad[i] - b[i] + diag * x[i];
 		}
 		nomNew = cblas_ddot(n, &grad[0], 1, &grad[0], 1);
-		cout << nomNew << endl;
+		//cout << nomNew << endl;
 
 	}
 

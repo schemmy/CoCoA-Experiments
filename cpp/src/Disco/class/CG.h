@@ -449,8 +449,8 @@ public:
 
 		if (mode == 1) {
 			if (world.rank() == 0) {
-				printf("%ith runs %i CG iterations, the norm of gradient is %E, the objective is %E\n",
-				       iter, inner_iter, grad_norm, objective[0]);
+				printf("%ith: %i CG iters, time %f, norm of gradient %E, objective %E\n",
+				       iter, inner_iter, elapsedTime, grad_norm, objective[0]);
 				logFile << iter << "," << inner_iter << "," << elapsedTime << "," << grad_norm << "," << objective[0] << endl;
 			}
 		}
