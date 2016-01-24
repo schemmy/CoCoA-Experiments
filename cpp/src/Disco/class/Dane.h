@@ -51,7 +51,7 @@ public:
 		gradient.resize(instance.m);
 		gradientWorld.resize(instance.m);
 		xTw.resize(instance.n);
-		gradIdx.resize(instance.m * instance.n);
+		//gradIdx.resize(instance.m * instance.n);
 		gradAvg.resize(instance.m);
 		wWolrd.resize(instance.m);
 	}
