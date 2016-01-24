@@ -118,24 +118,24 @@ public:
 				}
 			}
 
-		// 	std::vector<double> grad(n);
-		// 	for (unsigned int j = 0; j < instance.n; j++) {
-		// 		unsigned int idx = j;
-		// 		xTs = 0.0;
-		// 		for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++)
-		// 			xTs += instance.A_csr_values[i] * v[instance.A_csr_col_idx[i]];
-		// 		for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++)
-		// 			grad[instance.A_csr_col_idx[i]] += instance.A_csr_values[i] * xTs / instance.n;
-		// 	}
-		// 	for (unsigned int i = 0; i < n; i++) {
-		// 		grad[i] = grad[i] - (gradient[i] - gradientWorld[i]) + diag * v[i] - mu * w[i];
-		// 	}
-		// 	nomNew = cblas_ddot(n, &grad[0], 1, &grad[0], 1);
-		// 	//cout << nomNew << endl;
-		// 	iter++;
-		// 	if (iter == 1)
-		// 		nom0 = nomNew;
-		// }
+			std::vector<double> grad(n);
+			for (unsigned int j = 0; j < instance.n; j++) {
+				unsigned int idx = j;
+				xTs = 0.0;
+				for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++)
+					xTs += instance.A_csr_values[i] * v[instance.A_csr_col_idx[i]];
+				for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++)
+					grad[instance.A_csr_col_idx[i]] += instance.A_csr_values[i] * xTs / instance.n;
+			}
+			for (unsigned int i = 0; i < n; i++) {
+				grad[i] = grad[i] - (gradient[i] - gradientWorld[i]) + diag * v[i] - mu * w[i];
+			}
+			nomNew = cblas_ddot(n, &grad[0], 1, &grad[0], 1);
+			//cout << nomNew << endl;
+			iter++;
+			if (iter == 1)
+				nom0 = nomNew;
+		}
 
 
 	}
