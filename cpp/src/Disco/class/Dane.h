@@ -118,7 +118,9 @@ public:
 				}
 			}
 
-			// 		unsigned int idx = j;
+		// 	std::vector<double> grad(n);
+		// 	for (unsigned int j = 0; j < instance.n; j++) {
+		// 		unsigned int idx = j;
 		// 		xTs = 0.0;
 		// 		for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++)
 		// 			xTs += instance.A_csr_values[i] * v[instance.A_csr_col_idx[i]];
