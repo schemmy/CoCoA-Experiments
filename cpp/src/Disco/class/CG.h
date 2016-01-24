@@ -204,8 +204,8 @@ public:
 
 			lossFunction->computeVectorTimesData(w, instance, xTw, world, mode);
 			lossFunction->computeObjective(w, instance, xTw, objective[0], world, mode);
-
-			output(instance, iter, inner_iter, elapsedTime, constantSum, objective, grad_norm, logFile, world, mode);
+			int comm= 2*inner_iter;
+			output(instance, iter, comm, elapsedTime, constantSum, objective, grad_norm, logFile, world, mode);
 			if (flag[1] == 0)
 				break;
 
