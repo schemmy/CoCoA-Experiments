@@ -90,7 +90,7 @@ public:
 		batchSizeP = batchSizeP_;
 		batchSizeH = batchSizeH_;
 		tol = 1e-10;
-		maxIter = 500;
+		maxIter = 200;
 	}
 
 	void CGDistributedBySamples(std::vector<D> &w,

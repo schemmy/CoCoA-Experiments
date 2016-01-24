@@ -101,6 +101,23 @@ public:
 
 	}
 
+
+	virtual void computeLocalGradient(std::vector<double> &w, std::vector<double> &grad, std::vector<double> &xTw,
+	                                  ProblemData<unsigned int, double> &instance, boost::mpi::communicator & world, int &mode) {
+
+		cblas_set_to_zero(grad);
+
+		if (mode == 1) {
+			for (unsigned int idx = 0; idx < instance.n; idx++)
+				for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++)
+					grad[instance.A_csr_col_idx[i]] += (xTw[idx] - instance.b[idx]) * instance.A_csr_values[i] * instance.b[idx]
+					                                   / instance.n;
+
+			cblas_daxpy(instance.m, instance.lambda, &w[0], 1, &grad[0], 1);
+		}
+
+	}
+
 	virtual void computeGradient(std::vector<double> &w, std::vector<double> &grad, std::vector<double> &xTw,
 	                             ProblemData<unsigned int, double> &instance, boost::mpi::communicator & world, int &mode) {
 

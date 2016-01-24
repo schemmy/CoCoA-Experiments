@@ -17,6 +17,7 @@
 #include "class/QuadraticLoss.h"
 #include "class/LogisticLoss.h"
 #include "class/CG.h"
+#include "class/Dane.h"
 #include  <sstream>
 
 int main(int argc, char *argv[]) {
@@ -42,7 +43,7 @@ int main(int argc, char *argv[]) {
 
 
 	int mode = distributedSettings.LocalMethods;
-	if (mode == 1 || mode == 3) {
+	if (mode == 1 || mode == 3 || mode == 4) {
 		loadDistributedSparseSVMRowData(ctx.matrixAFile, world.rank(), world.size(), instance, false);
 		unsigned int finalM;
 		vall_reduce_maximum(world, &instance.m, &finalM, 1);
@@ -100,6 +101,11 @@ int main(int argc, char *argv[]) {
 	default:
 		break;
 	}	
+
+	if(mode == 4){
+		Dane<unsigned int, double> DaneMethod(instance, mu, lf);
+		DaneMethod.solver(w, instance, world, logFile);
+	}
 
 	//lf->distributed_PCG(w, instance, preConData, mu, vk, deltak, batchsizeP, batchsizeH, world, logFile, mode);
 

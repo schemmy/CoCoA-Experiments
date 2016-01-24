@@ -38,7 +38,10 @@ public:
 	                             ProblemData<unsigned int, double> &instance, boost::mpi::communicator & world, int &mode) {
 	}
 
+	virtual void computeLocalGradient(std::vector<double> &w, std::vector<double> &grad, std::vector<double> &xTw,
+	                                  ProblemData<unsigned int, double> &instance, boost::mpi::communicator & world, int &mode) {
 
+	}
 	virtual void computeHessianTimesAU(std::vector<double> &u, std::vector<double> &Hu, std::vector<double> &xTw,
 	                                   std::vector<double> &xTu, ProblemData<unsigned int, double> &instance, 
 	                                   unsigned int &batchSizeH,  std::vector<unsigned int> &randIdx,
