@@ -188,7 +188,7 @@ void CGSolver(std::vector<double> &A, int n,
 
 
 void SGDSolver(ProblemData<unsigned int, double> &instance,
-               unsigned int &n, std::vector<double> &b, std::vector<double> &x, double &diag) {
+               unsigned int &n, std::vector<double> &b, std::vector<double> &x, int nEpoch, double &diag) {
 
 	double eta = 0.05;
 	double kappa = 1.0;
@@ -200,9 +200,8 @@ void SGDSolver(ProblemData<unsigned int, double> &instance,
 	std::vector<double> z(instance.m);
 	cblas_dcopy(instance.m, &x[0], 1, &z[0], 1);
 	int iter = 0;
-	int maxIter = 10;
-	std::vector<double> S(maxIter * instance.n);
-	std::vector<double> Sb(maxIter * instance.n);
+	std::vector<double> S(nEpoch * instance.n);
+	std::vector<double> Sb(nEpoch * instance.n);
 	double xTs = 0.0;
 	double nomNew = 1.0;
 	double nom0 = 1.0;
@@ -210,7 +209,7 @@ void SGDSolver(ProblemData<unsigned int, double> &instance,
 
 //	for (int iter = 1; iter < maxIter; iter++) {
 
-	for (k = 1; k < instance.n * maxIter; k++) {
+	for (k = 1; k < instance.n * nEpoch; k++) {
 		unsigned int idx = floor(rand() / (0.0 + RAND_MAX) * instance.n);
 		if (C[idx] == 0) {
 			em++;
