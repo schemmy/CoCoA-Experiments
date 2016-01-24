@@ -17,6 +17,7 @@
 #include "class/QuadraticLoss.h"
 #include "class/LogisticLoss.h"
 #include "class/CG.h"
+#include "class/Cocoa.h"
 #include "class/Dane.h"
 #include  <sstream>
 
@@ -43,7 +44,7 @@ int main(int argc, char *argv[]) {
 
 
 	int mode = distributedSettings.LocalMethods;
-	if (mode == 1 || mode == 3 || mode == 4) {
+	if (mode == 1 || mode == 3 || mode == 4 || mode == 5) {
 		loadDistributedSparseSVMRowData(ctx.matrixAFile, world.rank(), world.size(), instance, false);
 		unsigned int finalM;
 		vall_reduce_maximum(world, &instance.m, &finalM, 1);
@@ -62,12 +63,20 @@ int main(int argc, char *argv[]) {
 	//for (unsigned int i = 0; i < instance.m; i++) w[i] = 0.5;
 	double rho = 1.0 / instance.n;
 	double mu = 0.1;
+	double gamma;
+	if (distributedSettings.APPROX) {
+		gamma = 1;
+		instance.penalty = world.size() + 0.0;
+	} else {
+		gamma = 1 / (world.size() + 0.0);
+		instance.penalty = 1;
+	}
 
 	int loss = distributedSettings.lossFunction;
 
 	std::stringstream ss;
-	ss << ctx.matrixAFile << "_"<< loss <<"_" << mode <<"_" << batchsizeP <<"_" << distributedSettings.iterationsPerThread
-			 <<"_" << world.size() << ".log";
+	ss << ctx.matrixAFile << "_" << loss << "_" << mode << "_" << batchsizeP << "_" << distributedSettings.iterationsPerThread
+	   << "_" << world.size() << ".log";
 	std::ofstream logFile;
 	logFile.open(ss.str().c_str());
 
@@ -86,7 +95,8 @@ int main(int argc, char *argv[]) {
 	default:
 		break;
 	}
-	
+
+
 	CG<unsigned int, double> CGmethod(instance, batchsizeP, batchsizeH, mu, lf);
 	switch (mode) {
 	case 1:
@@ -100,13 +110,17 @@ int main(int argc, char *argv[]) {
 		break;
 	default:
 		break;
-	}	
+	}
 
-	if(mode == 4){
-		Dane<unsigned int, double> DaneMethod(instance, mu, lf);
+	if (mode == 4) {
+		Dane<unsigned int, double> DaneMethod(instance, mu, batchsizeP, lf);
 		DaneMethod.solver(w, instance, world, logFile);
 	}
 
+	if (mode == 5) {
+		Cocoa<unsigned int, double> CocoaMethod(instance, lf);
+		CocoaMethod.solverSDCA(w, instance, distributedSettings, world, gamma, logFile);
+	}
 	//lf->distributed_PCG(w, instance, preConData, mu, vk, deltak, batchsizeP, batchsizeH, world, logFile, mode);
 
 	// if (mode == 1) {

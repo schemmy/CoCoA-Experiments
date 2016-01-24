@@ -337,8 +337,8 @@ public:
 
 
 	void CG_SAG(std::vector<D> &w,
-	                            ProblemData<I, D> & instance,  ProblemData<I, D> &preConData,
-	                            boost::mpi::communicator &world, std::ofstream &logFile) {
+	            ProblemData<I, D> & instance,  ProblemData<I, D> &preConData,
+	            boost::mpi::communicator &world, std::ofstream &logFile) {
 
 		int mode = 1;
 		lossFunction->computeVectorTimesData(w, instance, xTw, world, mode);
@@ -375,7 +375,7 @@ public:
 				cblas_dcopy(instance.m, &gradient[0], 1, &r[0], 1);
 
 				// s= p^-1 r
-				SGDSolver(instance, instance.m, r, s, batchSizeP, diag);
+				lossFunction->SAGSolver(instance, instance.m, xTw, r, s, batchSizeP, diag);
 
 				cblas_dcopy(instance.m, &s[0], 1, &u[0], 1);
 			}
@@ -401,7 +401,7 @@ public:
 					}
 					// solve linear system to get new s
 
-					SGDSolver(instance, instance.m, r, s, batchSizeP, diag);
+					lossFunction->SAGSolver(instance, instance.m, xTw, r, s, batchSizeP, diag);
 
 					D nom_new = cblas_ddot(instance.m, &r[0], 1, &s[0], 1);
 					beta = nom_new / nom;

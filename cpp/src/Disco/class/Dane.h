@@ -21,8 +21,10 @@ public:
 	std::vector<D> gradientWorld;
 	std::vector<D> gradient;
 	std::vector<D> xTw;
+	std::vector<D> wWolrd;
 	std::vector<D> v;
-
+	I nEpoch;
+	D eta;
 	std::vector<D> gradIdx;
 	std::vector<D> gradAvg;
 
@@ -33,47 +35,52 @@ public:
 	}
 
 	Dane(ProblemData<I, D> & instance,
-	     D mu_, LossFunction<I, D>* lossFunction_) {
+	     D mu_, D nEpoch_, LossFunction<I, D>* lossFunction_) {
 
 		lossFunction = lossFunction_;
 		mu = mu_;
+		nEpoch = nEpoch_;
 		tol = 1e-10;
-		maxIter = 100;
+		maxIter = 200;
 		start = 0;
 		finish = 0;
 		elapsedTime = 0;
-		diag =  mu;
-
+		diag = instance.lambda + mu;
+		eta = 1.0;
 		v.resize(instance.m);
 		gradient.resize(instance.m);
 		gradientWorld.resize(instance.m);
 		xTw.resize(instance.n);
 		gradIdx.resize(instance.m * instance.n);
 		gradAvg.resize(instance.m);
+		wWolrd.resize(instance.m);
 	}
 
 	void solver(std::vector<D> &w, ProblemData<I, D> & instance,
 	            boost::mpi::communicator &world, std::ofstream &logFile) {
 
 		int mode = 1;
+		lossFunction->computeVectorTimesData(w, instance, xTw, world, mode);
 		for (int iter = 0; iter < maxIter; iter++) {
 			start = gettime_();
-			lossFunction->computeVectorTimesData(w, instance, xTw, world, mode);
-			lossFunction->computeLocalGradient(w, gradient, xTw, instance, world, mode);
+			lossFunction->computeGradient(w, gradient, xTw, instance, world, mode);
 			vall_reduce(world, gradient, gradientWorld);
 			cblas_dscal(instance.m, 1.0 / world.size(), &gradientWorld[0], 1);
 
-			solveDaneSubproblem(instance, w);
+			lossFunction->SAGSolver(instance, instance.m, xTw, gradientWorld, v, nEpoch, diag);
+			//solveDaneSubproblem(instance, w);
+			cblas_daxpy(instance.m, -eta, &v[0], 1, &w[0], 1);
 
-			vall_reduce(world, v, w);
-			cblas_dscal(instance.m, 1.0 / world.size(), &w[0], 1);
-
+			vall_reduce(world, w, wWolrd);
+			for (unsigned int i = 0; i < instance.m; i++)
+				w[i] = wWolrd[i] / world.size();
 
 			D grad_norm = cblas_l2_norm(instance.m, &gradientWorld[0], 1);
 			finish = gettime_();
 			elapsedTime += finish - start;
-			output(instance, iter, elapsedTime, objective, grad_norm, logFile, world, mode);
+			lossFunction->computeVectorTimesData(w, instance, xTw, world, mode);
 			lossFunction->computeObjective(w, instance, xTw, objective, world, mode);
+			output(instance, iter, 2, elapsedTime, objective, grad_norm, logFile, world, mode);
 			if (grad_norm < tol)
 				break;
 		}
@@ -82,7 +89,7 @@ public:
 
 	void solveDaneSubproblem(ProblemData<I, D> & instance, std::vector<D> &w) {
 
-		double eta = 0.005;
+		double eta = 0.05;
 		double xTs = 0.0;
 		double nomNew = 1.0;
 		double nom0 = 1.0;
@@ -98,25 +105,25 @@ public:
 
 		//while (nomNew > 1e-10 * nom0) {
 
-			for (unsigned int ii = 0; ii < instance.n *10 ; ii++) {
+		for (unsigned int ii = 0; ii < instance.n * nEpoch ; ii++) {
 
-				xTs = 0.0;
-				unsigned int idx = floor(rand() / (0.0 + RAND_MAX) * instance.n);
-				for (unsigned int i = 0; i < n; i++) {
-					gradAvg[i] -= gradIdx[idx * n + i];
-					gradIdx[idx * n + i] = 0.0;
-				}
-				for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++)
-					xTs += instance.A_csr_values[i] * v[instance.A_csr_col_idx[i]];
-				for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++){
-					gradIdx[idx * n + instance.A_csr_col_idx[i]] = instance.A_csr_values[i] * xTs;
-					gradAvg[instance.A_csr_col_idx[i]] += gradIdx[idx * n + instance.A_csr_col_idx[i]];
-				}
-				for (unsigned int i = 0; i < n; i++) {
-					v[i] = v[i] - eta * (1.0/ instance.n * gradAvg[i] - (gradient[i] - gradientWorld[i])
-							 + diag * v[i] - mu * w[i]);
-				}
+			xTs = 0.0;
+			unsigned int idx = floor(rand() / (0.0 + RAND_MAX) * instance.n);
+			for (unsigned int i = 0; i < n; i++) {
+				gradAvg[i] -= gradIdx[idx * n + i];
+				gradIdx[idx * n + i] = 0.0;
 			}
+			for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++)
+				xTs += instance.A_csr_values[i] * v[instance.A_csr_col_idx[i]];
+			for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
+				gradIdx[idx * n + instance.A_csr_col_idx[i]] = instance.A_csr_values[i] * xTs;
+				gradAvg[instance.A_csr_col_idx[i]] += gradIdx[idx * n + instance.A_csr_col_idx[i]];
+			}
+			for (unsigned int i = 0; i < n; i++) {
+				v[i] = v[i] - eta * (1.0 / instance.n * gradAvg[i] - (gradient[i] - gradientWorld[i])
+				                     + diag * v[i] - mu * w[i]);
+			}
+		}
 
 		// 	std::vector<double> grad(n);
 		// 	for (unsigned int j = 0; j < instance.n; j++) {
@@ -142,14 +149,14 @@ public:
 
 
 
-	void output(ProblemData<unsigned int, double> &instance, int &iter, double & elapsedTime,
+	void output(ProblemData<unsigned int, double> &instance, int &iter, int inner_iter, double & elapsedTime,
 	            D &objective, double & grad_norm,
 	            std::ofstream & logFile, boost::mpi::communicator & world, int &mode) {
 
 		if (world.rank() == 0) {
-			printf("%ith: time %f, norm of gradient %E, objective %E\n",
-			       iter, elapsedTime, grad_norm, objective);
-			logFile << iter << "," << elapsedTime << "," << grad_norm << "," << objective << endl;
+			printf("%ith: %i comm, time %f, norm of gradient %E, objective %E\n",
+			       iter, inner_iter, elapsedTime, grad_norm, objective);
+			logFile << iter << "," << inner_iter << "," << elapsedTime << "," << grad_norm << "," << objective << endl;
 		}
 	}
 

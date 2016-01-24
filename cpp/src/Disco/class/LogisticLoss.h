@@ -111,9 +111,9 @@ public:
 
 		double tmp2 = cblas_l2_norm(instance.m, &w[0], 1);
 		finalDualError = 1.0 / instance.n * localError
-		                 + 0.5 * rho * tmp2 * tmp2;
+		                 + 0.5 * instance.lambda  * tmp2 * tmp2;
 		finalPrimalError =  1.0 / instance.n * localLogisticLoss
-		                    + 0.5 * rho * tmp2 * tmp2;
+		                    + 0.5 * instance.lambda  * tmp2 * tmp2;
 
 	}
 
@@ -251,10 +251,156 @@ public:
 			}
 		}
 
-		for (unsigned int i = 0; i < n; i++) 
+		for (unsigned int i = 0; i < n; i++)
 			x[i] = b[i] / diag - woodburyZHVTy[i];
 
 	}
+
+
+	virtual void SAGSolver(ProblemData<unsigned int, double> &instance, unsigned int &n, std::vector<double> &xTw,
+	                       std::vector<double> &b, std::vector<double> &x, int nEpoch, double &diag) {
+
+		double eta = 0.05;
+		double kappa = 1.0;
+		int em = 0;
+		std::vector<double> gradAvg(instance.m);
+		std::vector<double> y(instance.n);
+		std::vector<double> C(instance.n);
+		std::vector<int> V(instance.m, 1);
+		std::vector<double> z(instance.m);
+		cblas_dcopy(instance.m, &x[0], 1, &z[0], 1);
+		int iter = 0;
+		std::vector<double> S(nEpoch * instance.n);
+		std::vector<double> Sb(nEpoch * instance.n);
+		double xTs = 0.0;
+		double nomNew = 1.0;
+		double nom0 = 1.0;
+		unsigned int k;
+		D temp;
+
+		for (k = 1; k < instance.n * nEpoch; k++) {
+			unsigned int idx = floor(rand() / (0.0 + RAND_MAX) * instance.n);
+			if (C[idx] == 0) {
+				em++;
+				C[idx] = 1;
+			}
+
+			// Just-in-time calculation of needed values of z
+			xTs = 0.0;
+			for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
+				z[instance.A_csr_col_idx[i]] = z[instance.A_csr_col_idx[i]]
+				                               - (S[k - 1] - S[V[instance.A_csr_col_idx[i]] - 1]) * gradAvg[instance.A_csr_col_idx[i]]
+				                               + (Sb[k - 1] - Sb[V[instance.A_csr_col_idx[i]] - 1]) * b[instance.A_csr_col_idx[i]];
+				V[instance.A_csr_col_idx[i]] = k;
+				xTs += instance.A_csr_values[i] * z[instance.A_csr_col_idx[i]] * instance.b[idx];
+			}
+			//Update the memory y and the direction
+			for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
+				gradAvg[instance.A_csr_col_idx[i]] -= y[idx] * instance.A_csr_values[i] * instance.b[idx];
+			}
+			temp = exp(-1.0 * xTw[idx]);
+			temp = temp / (temp + 1) / (temp + 1);
+			y[idx] = temp * xTs * kappa;
+			//y[idx] = -1.0 * exp(-xTs * instance.b[idx]) / (1.0 + exp(-xTs * instance.b[idx])) * kappa;
+			for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
+				gradAvg[instance.A_csr_col_idx[i]] += y[idx] * instance.A_csr_values[i] * instance.b[idx];
+			}
+			//Update kappa and the sum needed for z updates.
+			kappa = kappa * (1.0 - eta * diag);
+			S[k] = S[k - 1] + eta / kappa / em;
+			Sb[k] = Sb[k - 1] + eta / kappa;
+		}
+
+		for (unsigned int i = 0; i < instance.m; i++) {
+			x[i] = kappa * (z[i] - (S[k - 1] - S[V[i] - 1]) * gradAvg[i]
+			                + (Sb[k - 1] - Sb[V[i] - 1]) * b[i]);
+		}
+
+// Naive implementation
+
+
+		// for (unsigned int ii = 0; ii < instance.n * nEpoch; ii++) {
+		// 	xTs = 0.0;
+		// 	unsigned int idx = floor(rand() / (0.0 + RAND_MAX) * instance.n);
+		// 	for (unsigned int i = 0; i < n; i++) {
+		// 		gradAvg[i] -= gradIdx[idx * n + i];
+		// 		gradIdx[idx * n + i] = 0.0;
+		// 	}
+		// 	for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++){
+		// 		xTs += instance.A_csr_values[i] * x[instance.A_csr_col_idx[i]] * instance.b[idx];
+		// 	}
+		// 	temp = exp(-1.0 * xTw[idx]);
+		// 	temp = temp / (temp + 1) / (temp + 1);
+		// 	for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
+		// 		gradIdx[idx * n + instance.A_csr_col_idx[i]] = instance.A_csr_values[i] * instance.b[idx] *
+		// 											temp * xTs;
+		// 		gradAvg[instance.A_csr_col_idx[i]] += gradIdx[idx * n + instance.A_csr_col_idx[i]];
+		// 	}
+		// 	for (unsigned int i = 0; i < n; i++) {
+		// 		x[i] -= eta * (1.0 / instance.n * gradAvg[i] - b[i] + diag * x[i]);
+		// 	}
+		// }
+
+
+	}
+
+
+
+
+
+	virtual void oneCocoaSDCAUpdate(ProblemData<unsigned int, double> &instance, std::vector<double> &w,
+	                                std::vector<double> &deltaAlpha, std::vector<double> &deltaW) {
+
+
+		L idx = rand() / (0.0 + RAND_MAX) * instance.n;
+		D dotProduct = 0;
+		for (L i = instance.A_csr_row_ptr[idx];
+		        i < instance.A_csr_row_ptr[idx + 1]; i++) {
+
+			dotProduct += (w[instance.A_csr_col_idx[i]]
+			               + 1.0 * instance.penalty * deltaW[instance.A_csr_col_idx[i]])
+			              * instance.A_csr_values[i];
+		}
+
+		D alphaI = instance.x[idx] + deltaAlpha[idx];
+
+		D norm = cblas_l2_norm(
+		             instance.A_csr_row_ptr[idx + 1] - instance.A_csr_row_ptr[idx],
+		             &instance.A_csr_values[instance.A_csr_row_ptr[idx]], 1);
+
+		D deltaAl = 0.0;
+		D epsilon = 1e-5;
+
+		if (alphaI == 0) {deltaAl = 0.1 * instance.b[idx];}
+		D FirstDerivative = 1.0 * instance.penalty * deltaAl * instance.oneOverLambdaN * norm * norm
+		                    + dotProduct * instance.b[idx] - log(1.0 - (alphaI + deltaAl) / instance.b[idx]) / instance.b[idx]
+		                    + log((alphaI + deltaAl) / instance.b[idx]) / instance.b[idx];
+
+		while (FirstDerivative > epsilon || FirstDerivative < -1.0 * epsilon)
+		{
+			D SecondDerivative = 1.0 * instance.penalty * norm * norm * instance.oneOverLambdaN
+			                     + 1.0 / (1.0 - (alphaI + deltaAl) / instance.b[idx]) + 1.0 / (alphaI + deltaAl) / instance.b[idx];
+			deltaAl = 1.0 * deltaAl - FirstDerivative / SecondDerivative;
+
+			if (instance.b[idx] == 1.0)
+				deltaAl = (deltaAl > 1 - alphaI) ? 1 - alphaI - 1e-15 : (deltaAl < -alphaI ? -alphaI + 1e-15 : deltaAl);
+			else if (instance.b[idx] == -1.0)
+				deltaAl = (deltaAl > -alphaI) ? -alphaI - 1e-15 : (deltaAl < -1.0 - alphaI ? -1.0 - alphaI + 1e-15 : deltaAl);
+			//if ((alphaI+ deltaAl)/instance.b[idx] == -1) cout<<idx<<endl;
+			FirstDerivative = 1.0 * instance.penalty * deltaAl * instance.oneOverLambdaN * norm * norm
+			                  + dotProduct * instance.b[idx] - log(1.0 - (alphaI + deltaAl) / instance.b[idx]) / instance.b[idx]
+			                  + log((alphaI + deltaAl) / instance.b[idx]) / instance.b[idx];
+		}
+		deltaAlpha[idx] += deltaAl;
+		for (L i = instance.A_csr_row_ptr[idx];
+		        i < instance.A_csr_row_ptr[idx + 1]; i++) {
+
+			D tmd =  instance.oneOverLambdaN * instance.A_csr_values[i] * deltaAl * instance.b[idx];
+			deltaW[instance.A_csr_col_idx[i]] += tmd;
+
+		}
+	}
+
 
 	// virtual void distributed_PCG(std::vector<double> &w, ProblemData<unsigned int, double> &instance,
 	//                              ProblemData<unsigned int, double> &preConData, double &mu,

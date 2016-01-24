@@ -43,7 +43,7 @@ public:
 
 	}
 	virtual void computeHessianTimesAU(std::vector<double> &u, std::vector<double> &Hu, std::vector<double> &xTw,
-	                                   std::vector<double> &xTu, ProblemData<unsigned int, double> &instance, 
+	                                   std::vector<double> &xTu, ProblemData<unsigned int, double> &instance,
 	                                   unsigned int &batchSizeH,  std::vector<unsigned int> &randIdx,
 	                                   boost::mpi::communicator & world, int &mode) {
 	}
@@ -65,7 +65,13 @@ public:
 	                            boost::mpi::communicator & world, int &mode) {
 	}
 
+	virtual void SAGSolver(ProblemData<unsigned int, double> &instance, unsigned int &n, std::vector<double> &xTw,
+	                       std::vector<double> &b, std::vector<double> &x, int nEpoch, double &diag) {
+	}
 
+	virtual void oneCocoaSDCAUpdate(ProblemData<unsigned int, double> &instance, std::vector<double> &w,
+	                                std::vector<double> &deltaAlpha, std::vector<double> &deltaW) {
+	}
 
 	virtual void computeInitialW(std::vector<double> &w, ProblemData<unsigned int, double> &instance,
 	                             double & rho, int rank) {

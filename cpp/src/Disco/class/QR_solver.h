@@ -229,7 +229,8 @@ void SGDSolver(ProblemData<unsigned int, double> &instance,
 		for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
 			gradAvg[instance.A_csr_col_idx[i]] -= y[idx] * instance.A_csr_values[i] * instance.b[idx];
 		}
-		y[idx] = xTs * kappa;
+		//y[idx] = xTs * kappa;
+		y[idx] = -1.0 * exp(-xTs*instance.b[idx])/(1.0 + exp(-xTs*instance.b[idx])) * kappa;
 		for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
 			gradAvg[instance.A_csr_col_idx[i]] += y[idx] * instance.A_csr_values[i] * instance.b[idx];
 		}

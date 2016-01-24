@@ -22,6 +22,11 @@ public:
 		return 1;
 	}
 
+	virtual void init(ProblemData<L, D> & instance) {
+
+
+	}
+
 
 	virtual void computeVectorTimesData(std::vector<double> &vec, ProblemData<unsigned int, double> &instance,
 	                                    std::vector<double> &result, boost::mpi::communicator &world, int &mode) {
@@ -95,9 +100,9 @@ public:
 
 		double tmp2 = cblas_l2_norm(instance.m, &w[0], 1);
 		finalDualError = 1.0 / instance.n * localError
-		                 + 0.5 * rho * tmp2 * tmp2;
+		                 + 0.5 * instance.lambda * tmp2 * tmp2;
 		finalPrimalError =  1.0 / instance.n * localQuadLoss
-		                    + 0.5 * rho * tmp2 * tmp2;
+		                    + 0.5 * instance.lambda * tmp2 * tmp2;
 
 	}
 
@@ -238,6 +243,141 @@ public:
 
 	}
 
+
+
+	virtual void SAGSolver(ProblemData<unsigned int, double> &instance,
+	               unsigned int &n, std::vector<double> &xTw, std::vector<double> &b, std::vector<double> &x, int nEpoch, double &diag) {
+
+		double eta = 0.05;
+		double kappa = 1.0;
+		int em = 0;
+		std::vector<double> gradAvg(instance.m);
+		std::vector<double> y(instance.n);
+		std::vector<double> C(instance.n);
+		std::vector<int> V(instance.m, 1);
+		std::vector<double> z(instance.m);
+		cblas_dcopy(instance.m, &x[0], 1, &z[0], 1);
+		int iter = 0;
+		std::vector<double> S(nEpoch * instance.n);
+		std::vector<double> Sb(nEpoch * instance.n);
+		double xTs = 0.0;
+		double nomNew = 1.0;
+		double nom0 = 1.0;
+		unsigned int k;
+
+//	for (int iter = 1; iter < maxIter; iter++) {
+
+		for (k = 1; k < instance.n * nEpoch; k++) {
+			unsigned int idx = floor(rand() / (0.0 + RAND_MAX) * instance.n);
+			if (C[idx] == 0) {
+				em++;
+				C[idx] = 1;
+			}
+
+			// Just-in-time calculation of needed values of z
+			xTs = 0.0;
+			for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
+				z[instance.A_csr_col_idx[i]] = z[instance.A_csr_col_idx[i]]
+				                               - (S[k - 1] - S[V[instance.A_csr_col_idx[i]] - 1]) * gradAvg[instance.A_csr_col_idx[i]]
+				                               + (Sb[k - 1] - Sb[V[instance.A_csr_col_idx[i]] - 1]) * b[instance.A_csr_col_idx[i]];
+				V[instance.A_csr_col_idx[i]] = k;
+				xTs += instance.A_csr_values[i] * z[instance.A_csr_col_idx[i]] * instance.b[idx];
+			}
+			//Update the memory y and the direction
+			for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
+				gradAvg[instance.A_csr_col_idx[i]] -= y[idx] * instance.A_csr_values[i] * instance.b[idx];
+			}
+			y[idx] = xTs * kappa;
+			//y[idx] = -1.0 * exp(-xTs * instance.b[idx]) / (1.0 + exp(-xTs * instance.b[idx])) * kappa;
+			for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
+				gradAvg[instance.A_csr_col_idx[i]] += y[idx] * instance.A_csr_values[i] * instance.b[idx];
+			}
+			//Update kappa and the sum needed for z updates.
+			kappa = kappa * (1.0 - eta * diag);
+			S[k] = S[k - 1] + eta / kappa / em;
+			Sb[k] = Sb[k - 1] + eta / kappa;
+		}
+
+		for (unsigned int i = 0; i < instance.m; i++) {
+			x[i] = kappa * (z[i] - (S[k - 1] - S[V[i] - 1]) * gradAvg[i]
+			                + (Sb[k - 1] - Sb[V[i] - 1]) * b[i]);
+		}
+
+
+
+		// 	std::vector<double> grad(n);
+		// 	for (unsigned int j = 0; j < instance.n; j++) {
+		// 		unsigned int idx = j;
+		// 		xTs = 0.0;
+		// 		for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++)
+		// 			xTs += instance.A_csr_values[i] * x[instance.A_csr_col_idx[i]];
+		// 		for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++)
+		// 			grad[instance.A_csr_col_idx[i]] += instance.A_csr_values[i] * xTs / instance.n;
+		// 	}
+		// 	for (unsigned int i = 0; i < n; i++) {
+		// 		grad[i] = grad[i] - b[i] + diag * x[i];
+		// 	}
+		// 	nomNew = cblas_ddot(n, &grad[0], 1, &grad[0], 1);
+		// 	//cout << nomNew << endl;
+		// 	if (iter == 1)
+		// 		nom0 = nomNew;
+		// 	if (nomNew < 1e-5 * nom0)
+		// 		break;
+
+		// }
+
+// Naive implementation
+		//std::vector<double> gradIdx(instance.m * instance.n);
+		// double xTs = 0.0;
+		// double nomNew = 1.0;
+		// double nom0 = 1.0;
+		//  while (nomNew > 1e-5 * nom0) {
+		// for (unsigned int ii = 0; ii < instance.n * 10; ii++) {
+		// 	xTs = 0.0;
+		// 	unsigned int idx = floor(rand() / (0.0 + RAND_MAX) * instance.n);
+		// 	for (unsigned int i = 0; i < n; i++) {
+		// 		gradAvg[i] -= gradIdx[idx * n + i];
+		// 		gradIdx[idx * n + i] = 0.0;
+		// 	}
+		// 	for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++)
+		// 		xTs += instance.A_csr_values[i] * x[instance.A_csr_col_idx[i]];
+		// 	for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++){
+		// 		gradIdx[idx * n + instance.A_csr_col_idx[i]] = instance.A_csr_values[i] * xTs;
+		// 		gradAvg[instance.A_csr_col_idx[i]] += gradIdx[idx * n + instance.A_csr_col_idx[i]];
+		// 	}
+		// 	for (unsigned int i = 0; i < n; i++) {
+		// 		x[i] -= eta * (1.0/ instance.n * gradAvg[i] - b[i] + diag * x[i]);
+		// 	}
+		// }
+
+
+
+
+
+	}
+
+	virtual void oneCocoaSDCAUpdate(ProblemData<unsigned int, double> &instance, std::vector<double> &w,
+	                                std::vector<double> &deltaAlpha, std::vector<double> &deltaW) {
+
+
+		L idx = rand() / (0.0 + RAND_MAX) * instance.n;
+		// compute "delta alpha" = argmin
+		D dotProduct = 0;
+		for (L i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
+			dotProduct += (w[instance.A_csr_col_idx[i]]
+			               + 1.0 * instance.penalty * deltaW[instance.A_csr_col_idx[i]])
+			              * instance.A_csr_values[i];
+		}
+		D alphaI = instance.x[idx] + deltaAlpha[idx];
+		D deltaAl = 0; // FINISH
+		deltaAl = (1.0 * instance.b[idx] - alphaI - dotProduct * instance.b[idx]) * instance.Li[idx];
+		deltaAlpha[idx] += deltaAl;
+
+		for (L i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++)
+			deltaW[instance.A_csr_col_idx[i]] += instance.oneOverLambdaN * deltaAl
+			                                     * instance.A_csr_values[i] * instance.b[idx];
+
+	}
 
 
 
