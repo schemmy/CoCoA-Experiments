@@ -204,8 +204,7 @@ public:
 
 			lossFunction->computeVectorTimesData(w, instance, xTw, world, mode);
 			lossFunction->computeObjective(w, instance, xTw, objective[0], world, mode);
-			int comm= 2*inner_iter;
-			output(instance, iter, comm, elapsedTime, constantSum, objective, grad_norm, logFile, world, mode);
+			output(instance, iter, inner_iter, elapsedTime, constantSum, objective, grad_norm, logFile, world, mode);
 			if (flag[1] == 0)
 				break;
 
@@ -450,8 +449,8 @@ public:
 		if (mode == 1) {
 			if (world.rank() == 0) {
 				printf("%ith: %i CG iters, time %f, norm of gradient %E, objective %E\n",
-				       iter, inner_iter, elapsedTime, grad_norm, objective[0]);
-				logFile << iter << "," << inner_iter << "," << elapsedTime << "," << grad_norm << "," << objective[0] << endl;
+				       iter, 2*inner_iter, elapsedTime, grad_norm, objective[0]);
+				logFile << iter << "," << 2*inner_iter << "," << elapsedTime << "," << grad_norm << "," << objective[0] << endl;
 			}
 		}
 		else if (mode == 2) {

@@ -113,7 +113,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	if (mode == 4) {
-		Dane<unsigned int, double> DaneMethod(instance, mu, batchsizeP, lf);
+		Dane<unsigned int, double> DaneMethod(instance, 0.0, batchsizeP, lf);
 		DaneMethod.solver(w, instance, world, logFile);
 	}
 
