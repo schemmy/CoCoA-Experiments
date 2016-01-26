@@ -67,7 +67,7 @@ public:
 			vall_reduce(world, gradient, gradientWorld);
 			cblas_dscal(instance.m, 1.0 / world.size(), &gradientWorld[0], 1);
 
-			//for (int jj = 0; jj < 1; jj++)
+			for (int jj = 0; jj < 8; jj++)
 				lossFunction->SAGSolver(instance, instance.m, xTw, gradientWorld, v, nEpoch, diag);
 			//solveDaneSubproblem(instance, w);
 			cblas_daxpy(instance.m, -eta, &v[0], 1, &w[0], 1);
