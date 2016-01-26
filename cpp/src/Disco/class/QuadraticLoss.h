@@ -248,7 +248,7 @@ public:
 	virtual void SAGSolver(ProblemData<unsigned int, double> &instance,
 	               unsigned int &n, std::vector<double> &xTw, std::vector<double> &b, std::vector<double> &x, int nEpoch, double &diag) {
 
-		double eta = 0.05;
+		double eta = 0.01;
 		double kappa = 1.0;
 		int em = 0;
 		std::vector<double> gradAvg(instance.m);
