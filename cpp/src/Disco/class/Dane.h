@@ -156,7 +156,7 @@ public:
 
 		if (world.rank() == 0) {
 			printf("%ith: %i comm, time %f, norm of gradient %E, objective %E\n",
-			       iter, inner_iter, elapsedTime/12.0, grad_norm, objective);
+			       iter, inner_iter, elapsedTime/10.0, grad_norm, objective);
 			logFile << iter << "," << inner_iter << "," << elapsedTime/4.0 << "," << grad_norm << "," << objective << endl;
 		}
 	}
