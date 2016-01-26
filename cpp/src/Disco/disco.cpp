@@ -62,7 +62,7 @@ int main(int argc, char *argv[]) {
 	std::vector<double> w(instance.m);
 	//for (unsigned int i = 0; i < instance.m; i++) w[i] = 0.5;
 	double rho = 1.0 / instance.n;
-	double mu = 0.01;
+	double mu = 0.1;
 	double gamma;
 	if (distributedSettings.APPROX) {
 		gamma = 1;
