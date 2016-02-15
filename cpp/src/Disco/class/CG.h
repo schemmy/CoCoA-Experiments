@@ -442,6 +442,113 @@ public:
 		}
 	}
 
+	void SH(std::vector<D> &w, ProblemData<I, D> & instance, boost::mpi::communicator & world, std::ofstream &logFile) {
+
+		int mode = 1;
+		diag = instance.lambda;
+
+		std::vector<double> woodburyZHVTy(instance.m);
+		//batchSizeH = min(instance.n, batchSizeH + 100);
+		std::vector<double> woodburyVTy(batchSizeH);
+		std::vector<double> woodburyVTy_World(batchSizeH);
+		std::vector<double> woodburyHVTy(batchSizeH);
+		woodburyH.resize(batchSizeH * batchSizeH);
+		randIdx.resize(batchSizeH);
+
+		for (int iter = 1; iter <= 100; iter++) {
+
+
+
+			geneRandIdx(oneToN, randIdx, instance.n, batchSizeH);
+
+			start = gettime_();
+			//			lossFunction->computeVectorTimesData(w, instance, xTw, world, mode);
+			cblas_set_to_zero(xTw);
+			for (unsigned int j = 0; j < batchSizeH; j++) {
+				unsigned int idx = randIdx[j];
+				double temp = 0.0;
+				for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++)
+					temp += w[instance.A_csr_col_idx[i]] * instance.A_csr_values[i];
+
+				xTw[idx] = temp * instance.b[idx];
+			}
+
+			//			lossFunction->computeGradient(w, gradient, xTw, instance, world, mode);
+			cblas_set_to_zero(gradient);
+			for (unsigned int j = 0; j < batchSizeH; j++) {
+				unsigned int idx = randIdx[j];
+				for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++)
+					gradient[instance.A_csr_col_idx[i]] += (xTw[idx] - instance.b[idx]) * instance.A_csr_values[i] * instance.b[idx]
+					                                       / batchSizeH;
+			}
+			cblas_daxpy(instance.m, instance.lambda, &w[0], 1, &gradient[0], 1);
+
+			//			lossFunction->getWoodburyH(instance, batchSizeH, woodburyH, xTw, diag);
+			cblas_set_to_zero(woodburyH);
+			for (unsigned int ii = 0; ii < batchSizeH; ii++) {
+				unsigned int idx1 = randIdx[ii];
+				for (unsigned int jj = 0; jj < batchSizeH; jj++) {
+					unsigned int idx2 = randIdx[jj];
+					unsigned int i = instance.A_csr_row_ptr[idx1];
+					unsigned int j = instance.A_csr_row_ptr[idx2];
+					while (i < instance.A_csr_row_ptr[idx1 + 1] && j < instance.A_csr_row_ptr[idx2 + 1]) {
+						if (instance.A_csr_col_idx[i] == instance.A_csr_col_idx[j]) {
+							woodburyH[ii * batchSizeH + jj] += instance.A_csr_values[i] * instance.A_csr_values[j]
+							                                   * instance.b[idx1] * instance.b[idx2] / diag / batchSizeH;
+							i++;
+							j++;
+						}
+						else if (instance.A_csr_col_idx[i] < instance.A_csr_col_idx[j])
+							i++;
+						else
+							j++;
+					}
+				}
+			}
+			for (unsigned int idx = 0; idx < batchSizeH; idx++)
+				woodburyH[idx * batchSizeH + idx] += 1.0;
+
+			cblas_set_to_zero(woodburyZHVTy);
+			cblas_set_to_zero(woodburyVTy);
+
+			for (unsigned int j = 0; j < batchSizeH; j++) {
+				unsigned int idx = randIdx[j];
+				for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
+					woodburyVTy[j] += instance.A_csr_values[i] * instance.b[idx] *
+					                  gradient[instance.A_csr_col_idx[i]] / diag / batchSizeH;
+				}
+			}
+
+			CGSolver(woodburyH, batchSizeH, woodburyVTy, woodburyHVTy);
+
+			for (unsigned int j = 0; j < batchSizeH; j++) {
+				unsigned int idx = randIdx[j];
+				for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
+					woodburyZHVTy[instance.A_csr_col_idx[i]] += instance.A_csr_values[i] * instance.b[idx]
+					        / diag * woodburyHVTy[j];
+				}
+			}
+
+			for (unsigned int i = 0; i < instance.m; i++)
+				w[i] = w[i] - 1.0 * (gradient[i] / diag - woodburyZHVTy[i]);
+
+
+			lossFunction->computeVectorTimesData(w, instance, xTw, world, mode);
+			lossFunction->computeObjective(w, instance, xTw, objective[0], world, mode);
+			lossFunction->computeGradient(w, gradient, xTw, instance, world, mode);
+			double grad_norm = cblas_l2_norm(instance.m, &gradient[0], 1);
+			int inner_iter = 0;
+			finish = gettime_();
+			elapsedTime += finish - start;
+			output(instance, iter, inner_iter, elapsedTime, constantSum, objective, grad_norm, logFile, world, mode);
+
+
+
+		}
+
+	}
+
+
 	void output(ProblemData<unsigned int, double> &instance, int &iter, int &inner_iter, double & elapsedTime,
 	            std::vector<double> &constantSum, std::vector<double> &objective, double & grad_norm,
 	            std::ofstream & logFile, boost::mpi::communicator & world, int &mode) {
@@ -449,8 +556,8 @@ public:
 		if (mode == 1) {
 			if (world.rank() == 0) {
 				printf("%ith: %i CG iters, time %f, norm of gradient %E, objective %E\n",
-				       iter, 2*inner_iter, elapsedTime, grad_norm, objective[0]);
-				logFile << iter << "," << 2*inner_iter << "," << elapsedTime << "," << grad_norm << "," << objective[0] << endl;
+				       iter, 2 * inner_iter, elapsedTime, grad_norm, objective[0]);
+				logFile << iter << "," << 2 * inner_iter << "," << elapsedTime << "," << grad_norm << "," << objective[0] << endl;
 			}
 		}
 		else if (mode == 2) {

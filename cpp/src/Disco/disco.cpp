@@ -44,7 +44,7 @@ int main(int argc, char *argv[]) {
 
 
 	int mode = distributedSettings.LocalMethods;
-	if (mode == 1 || mode == 3 || mode == 4 || mode == 5) {
+	if (mode == 1 || mode == 3 || mode == 4 || mode == 5 || mode == 6) {
 		loadDistributedSparseSVMRowData(ctx.matrixAFile, world.rank(), world.size(), instance, false);
 		unsigned int finalM;
 		vall_reduce_maximum(world, &instance.m, &finalM, 1);
@@ -108,6 +108,8 @@ int main(int argc, char *argv[]) {
 	case 3:
 		CGmethod.CG_SAG(w, instance, preConData, world, logFile);
 		break;
+	case 6:
+		CGmethod.SH(w, instance, world, logFile); //no mpi at this time
 	default:
 		break;
 	}
@@ -127,6 +129,8 @@ int main(int argc, char *argv[]) {
 	// 	if (world.rank() == 0)
 	// 		lf->computeInitialW(w, instance, rho, world.rank());
 	// }
+
+
 
 	//double nn = cblas_l2_norm(instance.m, &w[0], 1) * cblas_l2_norm(instance.m, &w[0], 1); cout<<nn<<endl;
 	logFile.close();
