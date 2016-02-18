@@ -442,11 +442,15 @@ public:
 		}
 	}
 
+
+// delete this, this is rubish
 	void SH(std::vector<D> &w, ProblemData<I, D> & instance, boost::mpi::communicator & world, std::ofstream &logFile) {
 
 		int mode = 1;
 		diag = instance.lambda;
 
+		std::vector<double> w_try(instance.m);
+		std::vector<double> xTw_try(instance.n);
 		std::vector<double> woodburyZHVTy(instance.m);
 		//batchSizeH = min(instance.n, batchSizeH + 100);
 		std::vector<double> woodburyVTy(batchSizeH);
@@ -454,6 +458,7 @@ public:
 		std::vector<double> woodburyHVTy(batchSizeH);
 		woodburyH.resize(batchSizeH * batchSizeH);
 		randIdx.resize(batchSizeH);
+		objective[0] = 1.0;
 
 		for (int iter = 1; iter <= 100; iter++) {
 
@@ -530,9 +535,29 @@ public:
 			}
 
 			for (unsigned int i = 0; i < instance.m; i++)
-				w[i] = w[i] - 1.0 * (gradient[i] / diag - woodburyZHVTy[i]);
+				vk[i] =  (gradient[i] / diag - woodburyZHVTy[i]);
 
 
+			// line search 
+			double vk_norm = cblas_l2_norm(instance.m, &vk[0], 1);
+
+			double stepsize = 1.0;
+			double obj_try = 0.0;
+			while (stepsize > 1e-5) {
+
+				for (unsigned int i = 0; i < instance.m; i++)
+					w_try[i] =  w[i] - stepsize * vk[i];
+
+				lossFunction->computeVectorTimesData(w_try, instance, xTw_try, world, mode);
+				lossFunction->computeObjective(w_try, instance, xTw_try, obj_try, world, mode);
+
+				if (obj_try < objective[0] - stepsize * 0.01 * vk_norm * vk_norm) {
+					cblas_dcopy(instance.m, &w_try[0], 1, &w[0], 1);
+					break;
+				}
+				stepsize *= 0.8;
+
+			}
 			lossFunction->computeVectorTimesData(w, instance, xTw, world, mode);
 			lossFunction->computeObjective(w, instance, xTw, objective[0], world, mode);
 			lossFunction->computeGradient(w, gradient, xTw, instance, world, mode);
