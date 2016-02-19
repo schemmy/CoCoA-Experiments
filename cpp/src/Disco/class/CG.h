@@ -488,6 +488,9 @@ public:
 			}
 			cblas_daxpy(instance.m, instance.lambda, &w[0], 1, &gradient[0], 1);
 
+			// lossFunction->computeVectorTimesData(w, instance, xTw, world, mode);
+			// lossFunction->computeGradient(w, gradient, xTw, instance, world, mode);
+
 			//			lossFunction->getWoodburyH(instance, batchSizeH, woodburyH, xTw, diag);
 			cblas_set_to_zero(woodburyH);
 			for (unsigned int ii = 0; ii < batchSizeH; ii++) {
@@ -538,26 +541,30 @@ public:
 				vk[i] =  (gradient[i] / diag - woodburyZHVTy[i]);
 
 
-			// line search 
+			//line search
 			double vk_norm = cblas_l2_norm(instance.m, &vk[0], 1);
 
 			double stepsize = 1.0;
 			double obj_try = 0.0;
-			while (stepsize > 1e-5) {
+			// while (stepsize > 1e-5) {
 
-				for (unsigned int i = 0; i < instance.m; i++)
-					w_try[i] =  w[i] - stepsize * vk[i];
+			// 	for (unsigned int i = 0; i < instance.m; i++)
+			// 		w_try[i] =  w[i] - stepsize * vk[i];
 
-				lossFunction->computeVectorTimesData(w_try, instance, xTw_try, world, mode);
-				lossFunction->computeObjective(w_try, instance, xTw_try, obj_try, world, mode);
+			// 	lossFunction->computeVectorTimesData(w_try, instance, xTw_try, world, mode);
+			// 	lossFunction->computeObjective(w_try, instance, xTw_try, obj_try, world, mode);
 
-				if (obj_try < objective[0] - stepsize * 0.01 * vk_norm * vk_norm) {
-					cblas_dcopy(instance.m, &w_try[0], 1, &w[0], 1);
-					break;
-				}
-				stepsize *= 0.8;
+			// 	if (obj_try < objective[0] - stepsize * 0.001 * vk_norm * vk_norm) {
+			// 		cblas_dcopy(instance.m, &w_try[0], 1, &w[0], 1);
+			// 		break;
+			// 	}
+			// 	stepsize *= 0.8;
 
-			}
+			// }
+
+			for (unsigned int i = 0; i < instance.m; i++)
+				w[i] =  w[i] - 1.0 * vk[i];
+
 			lossFunction->computeVectorTimesData(w, instance, xTw, world, mode);
 			lossFunction->computeObjective(w, instance, xTw, objective[0], world, mode);
 			lossFunction->computeGradient(w, gradient, xTw, instance, world, mode);
@@ -572,6 +579,173 @@ public:
 		}
 
 	}
+
+	void SGD(std::vector<D> &w, ProblemData<I, D> & instance, boost::mpi::communicator & world, std::ofstream &logFile) {
+
+		int mode = 1;
+		diag = instance.lambda;
+
+		std::vector<double> w_try(instance.m);
+		std::vector<double> xTw_try(instance.n);
+		std::vector<double> woodburyZHVTy(instance.m);
+		//batchSizeH = min(instance.n, batchSizeH + 100);
+		std::vector<double> woodburyVTy(batchSizeH);
+		std::vector<double> woodburyVTy_World(batchSizeH);
+		std::vector<double> woodburyHVTy(batchSizeH);
+		woodburyH.resize(batchSizeH * batchSizeH);
+		randIdx.resize(batchSizeH);
+		objective[0] = 1.0;
+
+		for (int iter = 1; iter <= 10000; iter++) {
+
+
+
+			geneRandIdx(oneToN, randIdx, instance.n, 1);
+
+			start = gettime_();
+			//			lossFunction->computeVectorTimesData(w, instance, xTw, world, mode);
+			cblas_set_to_zero(xTw);
+			for (unsigned int j = 0; j < 1; j++) {
+				unsigned int idx = randIdx[j];
+				double temp = 0.0;
+				for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++)
+					temp += w[instance.A_csr_col_idx[i]] * instance.A_csr_values[i];
+
+				xTw[idx] = temp * instance.b[idx];
+			}
+
+			//			lossFunction->computeGradient(w, gradient, xTw, instance, world, mode);
+			cblas_set_to_zero(gradient);
+			for (unsigned int j = 0; j < 1; j++) {
+				unsigned int idx = randIdx[j];
+				for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++)
+					gradient[instance.A_csr_col_idx[i]] += (xTw[idx] - instance.b[idx]) * instance.A_csr_values[i] * instance.b[idx]
+					                                       / 1;
+			}
+			cblas_daxpy(instance.m, instance.lambda, &w[0], 1, &gradient[0], 1);
+
+
+			for (unsigned int i = 0; i < instance.m; i++)
+				w[i] =  w[i] - 0.001 * gradient[i];
+
+			lossFunction->computeVectorTimesData(w, instance, xTw, world, mode);
+			lossFunction->computeObjective(w, instance, xTw, objective[0], world, mode);
+			lossFunction->computeGradient(w, gradient, xTw, instance, world, mode);
+			double grad_norm = cblas_l2_norm(instance.m, &gradient[0], 1);
+			int inner_iter = 0;
+			finish = gettime_();
+			elapsedTime += finish - start;
+			output(instance, iter, inner_iter, elapsedTime, constantSum, objective, grad_norm, logFile, world, mode);
+
+
+
+		}
+
+	}
+
+	void SAG(std::vector<D> &w, ProblemData<I, D> & instance, boost::mpi::communicator & world, std::ofstream &logFile) {
+
+		int mode = 1;
+		diag = instance.lambda;
+
+		objective[0] = 1.0;
+
+		double eta = 0.01;
+		double kappa = 1.0;
+		int em = 0;
+		int nEpoch = 4;
+		std::vector<double> gradAvg(instance.m);
+		std::vector<double> y(instance.n);
+		std::vector<double> C(instance.n);
+		std::vector<int> V(instance.m, 1);
+		std::vector<double> z(instance.m);
+
+		std::vector<double> S(nEpoch * instance.n);
+		double xTs = 0.0;
+		double nomNew = 1.0;
+		double nom0 = 1.0;
+		unsigned int k = 1;
+		std::vector<double> gradIdx(instance.m * instance.n);
+
+		cblas_dcopy(instance.m, &w[0], 1, &z[0], 1);
+
+		for (int iter = 1; iter <= 100; iter++) {
+			start = gettime_();
+
+			for (unsigned int ii = 0; ii < instance.n * 1; ii++) {
+				xTs = 0.0;
+				unsigned int idx = floor(rand() / (0.0 + RAND_MAX) * instance.n);
+				for (unsigned int i = 0; i < instance.m; i++) {
+					gradAvg[i] -= gradIdx[idx * instance.m + i];
+					gradIdx[idx * instance.m + i] = 0.0;
+				}
+				for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++)
+					xTs += instance.A_csr_values[i] * w[instance.A_csr_col_idx[i]] * instance.b[idx];
+				for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
+					gradIdx[idx * instance.m + instance.A_csr_col_idx[i]] = instance.A_csr_values[i]
+															 * instance.b[idx] * (xTs- instance.b[idx]);
+					gradAvg[instance.A_csr_col_idx[i]] += gradIdx[idx * instance.m + instance.A_csr_col_idx[i]];
+				}
+				for (unsigned int i = 0; i < instance.m; i++) {
+					w[i] -= eta * (1.0 / instance.n * gradAvg[i]  + diag * w[i]);
+				}
+			}
+
+
+			// cblas_set_to_zero(S);
+			// cblas_set_to_zero(y);
+			// cblas_set_to_zero(C);
+			// cblas_set_to_zero(V);
+			// cblas_set_to_zero(gradAvg);
+			// cblas_set_to_zero(z);
+			// for (k = 1; k < instance.n * nEpoch; k++) {
+			// 	unsigned int idx = floor(rand() / (0.0 + RAND_MAX) * instance.n);
+			// 	if (C[idx] == 0) {
+			// 		em++;
+			// 		C[idx] = 1;
+			// 	}
+
+			// 	// Just-in-time calculation of needed values of z
+			// 	xTs = 0.0;
+			// 	for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
+			// 		z[instance.A_csr_col_idx[i]] = z[instance.A_csr_col_idx[i]]
+			// 		                               - (S[k - 1] - S[V[instance.A_csr_col_idx[i]] - 1]) * gradAvg[instance.A_csr_col_idx[i]];
+
+			// 		V[instance.A_csr_col_idx[i]] = k;
+			// 		xTs += instance.A_csr_values[i] * z[instance.A_csr_col_idx[i]] * instance.b[idx];
+			// 	}
+			// 	//Update the memory y and the direction
+			// 	for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
+			// 		gradAvg[instance.A_csr_col_idx[i]] -= y[idx] * instance.A_csr_values[i] * instance.b[idx];
+			// 	}
+			// 	y[idx] = xTs * kappa - instance.b[idx];
+			// 	//y[idx] = -1.0 * exp(-xTs * instance.b[idx]) / (1.0 + exp(-xTs * instance.b[idx])) * kappa;
+			// 	for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
+			// 		gradAvg[instance.A_csr_col_idx[i]] += y[idx] * instance.A_csr_values[i] * instance.b[idx];
+			// 	}
+			// 	//Update kappa and the sum needed for z updates.
+			// 	kappa = kappa * (1.0 - eta * diag);
+			// 	S[k] = S[k - 1] + eta / kappa / em;
+			// }
+
+			// for (unsigned int i = 0; i < instance.m; i++) {
+			// 	w[i] = kappa * (z[i] - (S[k - 1] - S[V[i] - 1]) * gradAvg[i]);
+			// }
+
+			lossFunction->computeVectorTimesData(w, instance, xTw, world, mode);
+			lossFunction->computeObjective(w, instance, xTw, objective[0], world, mode);
+			lossFunction->computeGradient(w, gradient, xTw, instance, world, mode);
+			double grad_norm = cblas_l2_norm(instance.m, &gradient[0], 1);
+			int inner_iter = 0;
+			finish = gettime_();
+			elapsedTime += finish - start;
+			output(instance, iter, inner_iter, elapsedTime, constantSum, objective, grad_norm, logFile, world, mode);
+		}
+
+
+	}
+
+
 
 
 	void output(ProblemData<unsigned int, double> &instance, int &iter, int &inner_iter, double & elapsedTime,

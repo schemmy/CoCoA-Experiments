@@ -60,9 +60,9 @@ public:
 	            boost::mpi::communicator &world, std::ofstream &logFile) {
 
 		int mode = 1;
-		lossFunction->computeVectorTimesData(w, instance, xTw, world, mode);
 		for (int iter = 0; iter < maxIter; iter++) {
 			start = gettime_();
+			lossFunction->computeVectorTimesData(w, instance, xTw, world, mode);
 			lossFunction->computeGradient(w, gradient, xTw, instance, world, mode);
 			vall_reduce(world, gradient, gradientWorld);
 			cblas_dscal(instance.m, 1.0 / world.size(), &gradientWorld[0], 1);
