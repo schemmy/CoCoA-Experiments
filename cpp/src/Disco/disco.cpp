@@ -109,7 +109,7 @@ int main(int argc, char *argv[]) {
 		CGmethod.CG_SAG(w, instance, preConData, world, logFile);
 		break;
 	case 6:
-		CGmethod.SH(w, instance, world, logFile); //no mpi at this time
+		CGmethod.SH_SVRG(w, instance, world, logFile); //no mpi at this time
 	default:
 		break;
 	}
