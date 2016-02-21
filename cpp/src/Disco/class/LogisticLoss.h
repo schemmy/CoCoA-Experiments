@@ -474,6 +474,7 @@ public:
 			xTw_ = xTw_ * instance.b[idx1];
 
 			temp = exp(-xTw_);
+			cout<<xTw_<<endl;
 			scalar = temp / (temp + 1) / (temp + 1);
 			for (unsigned int jj = 0; jj < batchHessian; jj++) {
 				unsigned int idx2 = randIdx[jj];
