@@ -72,7 +72,7 @@ public:
 		oneToN.resize(instance.n);
 		for (I idx = 0; idx < instance.n; idx++)
 			oneToN[idx] = idx;
-		
+
 		maxIter = 10000;
 		SVRGFreq = 10;
 
@@ -119,6 +119,27 @@ public:
 			// }
 			// for (unsigned int idx = 0; idx < batchHessian; idx++)
 			// 	woodburyH[idx * batchHessian + idx] += 1.0;
+
+
+			
+
+			// cblas_set_to_zero(woodburyH);
+			// woodburyH.resize(instance.m * instance.m);
+			// lossFunction -> computeVectorTimesData(w, instance, xTw, world, mode);
+			// for (unsigned int idx = 0; idx < instance.n; idx++) {
+			// 	double temp = exp(-1.0 * xTw[idx]);
+			// 	double scalar = temp / (temp + 1) / (temp + 1);
+			// 	for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++)
+			// 		for (unsigned int j = instance.A_csr_row_ptr[idx]; j < instance.A_csr_row_ptr[idx + 1]; j++)
+			// 			woodburyH[instance.A_csr_col_idx[i] * instance.m + instance.A_csr_col_idx[j]] +=
+			// 			    instance.A_csr_values[i] * instance.A_csr_values[j] * scalar / instance.n;
+
+			// }
+			// for (unsigned int idx = 0; idx < instance.n; idx++)
+			// 	woodburyH[idx * instance.m + idx] += instance.lambda;
+
+			// CGSolver(woodburyH, instance.m, gradient, vk);
+
 
 
 			lossFunction->StoWoodburySolve(batchHessian, w, instance, woodburyH, gradient, woodburyZHVTy,
@@ -171,7 +192,7 @@ public:
 			// }
 
 			for (unsigned int i = 0; i < instance.m; i++)
-				w[i] =  w[i] - 0.1 * vk[i];
+				w[i] =  w[i] - 1.0 * vk[i];
 
 			finish = gettime_();
 			elapsedTime += finish - start;

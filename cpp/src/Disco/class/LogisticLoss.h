@@ -482,7 +482,7 @@ public:
 				while (i < instance.A_csr_row_ptr[idx1 + 1] && j < instance.A_csr_row_ptr[idx2 + 1]) {
 					if (instance.A_csr_col_idx[i] == instance.A_csr_col_idx[j]) {
 						woodburyH[ii * batchHessian + jj] += instance.A_csr_values[i]  * instance.A_csr_values[j]
-						                                     * instance.b[idx1] * instance.b[idx2] / diag / batchHessian * scalar;
+						                                     * instance.b[idx1] * instance.b[idx2] / instance.lambda / batchHessian * scalar;
 						j++;
 					}
 					else if (instance.A_csr_col_idx[i] < instance.A_csr_col_idx[j])
