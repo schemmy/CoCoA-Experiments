@@ -74,7 +74,7 @@ public:
 			oneToN[idx] = idx;
 
 		maxIter = 10000;
-		SVRGFreq = 10;
+		SVRGFreq = 500;
 
 	}
 
@@ -192,11 +192,11 @@ public:
 			// }
 
 			for (unsigned int i = 0; i < instance.m; i++)
-				w[i] =  w[i] - 0.001 * vk[i];
+				w[i] =  w[i] - 0.0001 * vk[i];
 
 			finish = gettime_();
 			elapsedTime += finish - start;
-			if ( iter % 2 == 1) {
+			if ( iter % 1000 == 1) {
 				lossFunction->computeVectorTimesData(w, instance, xTw, world, mode);
 				lossFunction->computeObjective(w, instance, xTw, objective[0], world, mode);
 				lossFunction->computeGradient(w, gradient, xTw, instance, world, mode);
