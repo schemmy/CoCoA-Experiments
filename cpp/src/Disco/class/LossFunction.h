@@ -77,6 +77,29 @@ public:
 	                             double & rho, int rank) {
 	}
 
+	virtual void computeStoGrad_SVRG(int iter, int freq, unsigned int batchGrad,
+	                                 std::vector<double> &w, std::vector<double> &wRec,
+	                                 ProblemData<unsigned int, double> instance,
+	                                 std::vector<double> &xTw, std::vector<double> &xTwRec,
+	                                 std::vector<double> &gradientFull, std::vector<double> &gradientRec,
+	                                 std::vector<double> &gradient, std::vector<unsigned int> &randIdxGrad) {
+
+	}
+
+	virtual void StoWoodburyHGet(std::vector<double> &w, ProblemData<unsigned int, double> &instance,
+	                             unsigned int &p, std::vector<double> &woodburyH,
+	                             std::vector<double> &wTx, std::vector<unsigned int> &randIdx, double & diag) {
+	}
+	
+	virtual void StoWoodburySolve(unsigned int batchHessian, std::vector<double> &w, ProblemData<unsigned int, double> instance,
+	                              std::vector<double> &woodburyH,
+	                              std::vector<double> &gradient, std::vector<double> &woodburyZHVTy,
+	                              std::vector<double> &woodburyVTy, std::vector<double> &woodburyHVTy,
+	                              std::vector<double> &vk, std::vector<unsigned int> &randIdx) {
+
+
+	}
+
 
 };
 

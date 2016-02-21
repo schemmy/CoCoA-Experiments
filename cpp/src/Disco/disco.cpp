@@ -17,6 +17,7 @@
 #include "class/QuadraticLoss.h"
 #include "class/LogisticLoss.h"
 #include "class/CG.h"
+#include "class/StochasticMethods.h"
 #include "class/Cocoa.h"
 #include "class/Dane.h"
 #include  <sstream>
@@ -108,8 +109,6 @@ int main(int argc, char *argv[]) {
 	case 3:
 		CGmethod.CG_SAG(w, instance, preConData, world, logFile);
 		break;
-	case 6:
-		CGmethod.SH_SVRG(w, instance, world, logFile); //no mpi at this time
 	default:
 		break;
 	}
@@ -123,6 +122,13 @@ int main(int argc, char *argv[]) {
 		Cocoa<unsigned int, double> CocoaMethod(instance, lf);
 		CocoaMethod.solverSDCA(w, instance, distributedSettings, world, gamma, logFile);
 	}
+
+	if (mode == 6) {
+		batchsizeP = floor(instance.n / distributedSettings.iters_communicate_count);
+		StochasticMethods<unsigned int, double> StoMethod(instance, batchsizeP, batchsizeH, lf);
+		StoMethod.SH_SVRG(w, instance, world, logFile);
+	}
+
 	//lf->distributed_PCG(w, instance, preConData, mu, vk, deltak, batchsizeP, batchsizeH, world, logFile, mode);
 
 	// if (mode == 1) {

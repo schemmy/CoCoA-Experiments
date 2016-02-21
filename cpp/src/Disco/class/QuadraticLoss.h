@@ -246,7 +246,7 @@ public:
 
 
 	virtual void SAGSolver(ProblemData<unsigned int, double> &instance,
-	               unsigned int &n, std::vector<double> &xTw, std::vector<double> &b, std::vector<double> &x, int nEpoch, double &diag) {
+	                       unsigned int &n, std::vector<double> &xTw, std::vector<double> &b, std::vector<double> &x, int nEpoch, double &diag) {
 
 		double eta = 0.01;
 		double kappa = 1.0;
@@ -379,6 +379,125 @@ public:
 
 	}
 
+
+
+	virtual void computeStoGrad_SVRG(int iter, int freq, unsigned int batchGrad,
+	                                 std::vector<double> &w, std::vector<double> &wRec,
+	                                 ProblemData<unsigned int, double> instance,
+	                                 std::vector<double> &xTw, std::vector<double> &xTwRec,
+	                                 std::vector<double> &gradientFull, std::vector<double> &gradientRec,
+	                                 std::vector<double> &gradient, std::vector<unsigned int> &randIdxGrad) {
+
+
+		if (iter % freq == 1) {
+			// computeVectorTimesData(w, instance, xTw, world, mode);
+			// computeGradient(w, gradientFull, xTw, instance, world, mode);
+			cblas_set_to_zero(gradientFull);
+			for (unsigned int idx = 0; idx < instance.n; idx++) {
+				xTw[idx] = 0;
+
+				for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++)
+					xTw[idx] += w[instance.A_csr_col_idx[i]] * instance.A_csr_values[i];
+
+				xTw[idx] = xTw[idx] * instance.b[idx];
+				xTwRec[idx] = xTw[idx];
+				for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++)
+					gradientFull[instance.A_csr_col_idx[i]] += (xTw[idx] - instance.b[idx]) *
+					        instance.A_csr_values[i] * instance.b[idx] / instance.n;
+			}
+			//cblas_daxpy(instance.m, instance.lambda, &w[0], 1, &gradientFull[0], 1);
+			cblas_dcopy(instance.m, &w[0], 1, &wRec[0], 1);
+		}
+
+		cblas_set_to_zero(gradient);
+		cblas_set_to_zero(gradientRec);
+		for (unsigned int j = 0; j < batchGrad; j++) {
+			unsigned int idx = randIdxGrad[j];
+			xTw[idx] = 0;
+
+			for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++)
+				xTw[idx] += w[instance.A_csr_col_idx[i]] * instance.A_csr_values[i];
+
+			xTw[idx] = xTw[idx] * instance.b[idx];
+			for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
+				gradient[instance.A_csr_col_idx[i]] += (xTw[idx] - instance.b[idx]) * instance.A_csr_values[i] * instance.b[idx]
+				                                       / batchGrad;
+				gradientRec[instance.A_csr_col_idx[i]] += (xTwRec[idx] - instance.b[idx]) * instance.A_csr_values[i] * instance.b[idx]
+				        / batchGrad;
+			}
+		}
+
+		// cblas_daxpy(instance.m, instance.lambda, &w[0], 1, &gradient[0], 1);
+		// cblas_daxpy(instance.m, instance.lambda, &wRec[0], 1, &gradientRec[0], 1);
+
+		for (unsigned int i = 0; i < instance.m; i++) {
+			gradient[i] = gradient[i] + instance.lambda * w[i] - gradientRec[i] + gradientFull[i];
+
+		}
+
+	}
+
+	virtual void StoWoodburyHGet(std::vector<double> &w, ProblemData<unsigned int, double> &instance,
+	                             unsigned int &batchHessian, std::vector<double> &woodburyH,
+	                             std::vector<double> &wTx, std::vector<unsigned int> &randIdx, double & diag) {
+		cblas_set_to_zero(woodburyH);
+		for (unsigned int ii = 0; ii < batchHessian; ii++) {
+			unsigned int idx1 = randIdx[ii];
+			for (unsigned int jj = 0; jj < batchHessian; jj++) {
+				unsigned int idx2 = randIdx[jj];
+				unsigned int i = instance.A_csr_row_ptr[idx1];
+				unsigned int j = instance.A_csr_row_ptr[idx2];
+				while (i < instance.A_csr_row_ptr[idx1 + 1] && j < instance.A_csr_row_ptr[idx2 + 1]) {
+					if (instance.A_csr_col_idx[i] == instance.A_csr_col_idx[j]) {
+						woodburyH[ii * batchHessian + jj] += instance.A_csr_values[i] * instance.A_csr_values[j]
+						                                     * instance.b[idx1] * instance.b[idx2] / diag / batchHessian;
+						i++;
+						j++;
+					}
+					else if (instance.A_csr_col_idx[i] < instance.A_csr_col_idx[j])
+						i++;
+					else
+						j++;
+				}
+			}
+		}
+		for (unsigned int idx = 0; idx < batchHessian; idx++)
+			woodburyH[idx * batchHessian + idx] += 1.0;
+
+	}
+	virtual void StoWoodburySolve(unsigned int batchHessian, std::vector<double> &w, ProblemData<unsigned int, double> instance,
+	                              std::vector<double> &woodburyH,
+	                              std::vector<double> &gradient, std::vector<double> &woodburyZHVTy,
+	                              std::vector<double> &woodburyVTy, std::vector<double> &woodburyHVTy,
+	                              std::vector<double> &vk, std::vector<unsigned int> &randIdx) {
+
+
+		cblas_set_to_zero(woodburyVTy);
+
+		for (unsigned int j = 0; j < batchHessian; j++) {
+			unsigned int idx = randIdx[j];
+			for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
+				woodburyVTy[j] += instance.A_csr_values[i] * instance.b[idx] *
+				                  gradient[instance.A_csr_col_idx[i]] / instance.lambda / batchHessian;
+			}
+		}
+
+		CGSolver(woodburyH, batchHessian, woodburyVTy, woodburyHVTy);
+
+		for (unsigned int j = 0; j < batchHessian; j++) {
+			unsigned int idx = randIdx[j];
+			for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
+				woodburyZHVTy[instance.A_csr_col_idx[i]] += instance.A_csr_values[i] * instance.b[idx]
+				        / instance.lambda * woodburyHVTy[j];
+			}
+		}
+
+		for (unsigned int i = 0; i < instance.m; i++) {
+			vk[i] =  (gradient[i] / instance.lambda  - woodburyZHVTy[i]);
+			woodburyZHVTy[i] = 0;
+		}
+
+	}
 
 
 	// virtual void distributed_PCG(std::vector<double> &w, ProblemData<unsigned int, double> &instance,
