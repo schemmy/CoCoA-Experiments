@@ -177,7 +177,7 @@ void CGSolver(std::vector<double> &A, int n,
 		cblas_daxpy(n, -1.0, &r[0], 1, &p[0], 1);
 		iter += 1;
 		//cout<<sqrt(nomNew)<<endl;
-		if (sqrt(nomNew) <= tol || iter > 1000) {
+		if (sqrt(nomNew) <= tol || iter > 2000) {
 			//cout<< iter <<endl;
 			break;
 		}

@@ -192,7 +192,7 @@ public:
 			// }
 
 			for (unsigned int i = 0; i < instance.m; i++)
-				w[i] =  w[i] - 1.0 * vk[i];
+				w[i] =  w[i] - 0.001 * vk[i];
 
 			finish = gettime_();
 			elapsedTime += finish - start;

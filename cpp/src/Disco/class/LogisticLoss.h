@@ -455,7 +455,7 @@ public:
 		// cblas_daxpy(instance.m, instance.lambda, &wRec[0], 1, &gradientRec[0], 1);
 
 		for (unsigned int i = 0; i < instance.m; i++) {
-			gradient[i] = gradient[i] + instance.lambda * w[i];// - gradientRec[i] + gradientFull[i];
+			gradient[i] = gradient[i] + instance.lambda * w[i] - gradientRec[i] + gradientFull[i];
 		}
 
 	}
@@ -474,7 +474,6 @@ public:
 			xTw_ = xTw_ * instance.b[idx1];
 
 			temp = exp(-xTw_);
-			cout<<xTw_<<endl;
 			scalar = temp / (temp + 1) / (temp + 1);
 			for (unsigned int jj = 0; jj < batchHessian; jj++) {
 				unsigned int idx2 = randIdx[jj];
@@ -520,7 +519,7 @@ public:
 				                    / instance.lambda  / batchHessian * scalar;
 			}
 		}
-		CGSolver(woodburyH, batchHessian, woodburyVTy, woodburyHVTy);
+		QRGramSchmidtSolver(woodburyH, batchHessian, woodburyVTy, woodburyHVTy);
 
 		for (unsigned int j = 0; j < batchHessian; j++) {
 			unsigned int idx = randIdx[j];
