@@ -92,17 +92,17 @@ public:
 
 			start = gettime_();
 
-			lossFunction->computeStoGrad_SVRG(iter, SVRGFreq, batchGrad, w, wRec, instance, xTw, xTwRec,
-			                                  gradientFull, gradientRec, gradient, randIdxGrad);
+			// lossFunction->computeStoGrad_SVRG(iter, SVRGFreq, batchGrad, w, wRec, instance, xTw, xTwRec,
+			//                                   gradientFull, gradientRec, gradient, randIdxGrad);
 
-			lossFunction->StoWoodburyHGet(w, instance, batchHessian, woodburyH, xTw, randIdx, diag);
+			// lossFunction->StoWoodburyHGet(w, instance, batchHessian, woodburyH, xTw, randIdx, diag);
 
-			lossFunction->StoWoodburySolve(batchHessian, w, instance, woodburyH, gradient, woodburyZHVTy,
-			                               woodburyVTy, woodburyHVTy, vk, randIdx);
+			// lossFunction->StoWoodburySolve(batchHessian, w, instance, woodburyH, gradient, woodburyZHVTy,
+			//                                woodburyVTy, woodburyHVTy, vk, randIdx);
 
 
 			for (unsigned int i = 0; i < instance.m; i++)
-				w[i] =  w[i] - 0.001 * vk[i];
+				w[i] =  w[i] - 0.1 * vk[i];
 
 			finish = gettime_();
 			elapsedTime += finish - start;
@@ -118,39 +118,39 @@ public:
 
 
 
-			// cblas_set_to_zero(woodburyH);
-			// cblas_set_to_zero(trueH);
-			// woodburyH.resize(instance.m * instance.m);
-			// lossFunction -> computeVectorTimesData(w, instance, xTw, world, mode);
-			// lossFunction -> computeGradient(w, gradient, xTw, instance, world, mode);
-			// for (unsigned int j = 0; j < batchHessian; j++) {
-			// 	unsigned int idx = randIdx[j];
-			// 	double temp = exp(-1.0 * xTw[idx]);
-			// 	double scalar = temp / (temp + 1) / (temp + 1);
-			// 	for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++)
-			// 		for (unsigned int j = instance.A_csr_row_ptr[idx]; j < instance.A_csr_row_ptr[idx + 1]; j++)
-			// 			woodburyH[instance.A_csr_col_idx[i] * instance.m + instance.A_csr_col_idx[j]] +=
-			// 			    instance.A_csr_values[i] * instance.A_csr_values[j] * scalar / batchHessian;
+			cblas_set_to_zero(woodburyH);
+			cblas_set_to_zero(trueH);
+			woodburyH.resize(instance.m * instance.m);
+			lossFunction -> computeVectorTimesData(w, instance, xTw, world, mode);
+			lossFunction -> computeGradient(w, gradient, xTw, instance, world, mode);
+			for (unsigned int j = 0; j < batchHessian; j++) {
+				unsigned int idx = randIdx[j];
+				double temp = exp(-1.0 * xTw[idx]);
+				double scalar = temp / (temp + 1) / (temp + 1);
+				for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++)
+					for (unsigned int j = instance.A_csr_row_ptr[idx]; j < instance.A_csr_row_ptr[idx + 1]; j++)
+						woodburyH[instance.A_csr_col_idx[i] * instance.m + instance.A_csr_col_idx[j]] +=
+						    instance.A_csr_values[i] * instance.A_csr_values[j]  / instance.n;
 
-			// }
-			// for (unsigned int idx = 0; idx < instance.n; idx++) {
-			// 	double temp = exp(-1.0 * xTw[idx]);
-			// 	double scalar = temp / (temp + 1) / (temp + 1);
-			// 	for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++)
-			// 		for (unsigned int j = instance.A_csr_row_ptr[idx]; j < instance.A_csr_row_ptr[idx + 1]; j++)
-			// 			trueH[instance.A_csr_col_idx[i] * instance.m + instance.A_csr_col_idx[j]] +=
-			// 			    instance.A_csr_values[i] * instance.A_csr_values[j] * scalar / instance.n;
+			}
+			for (unsigned int idx = 0; idx < instance.n; idx++) {
+				double temp = exp(-1.0 * xTw[idx]);
+				double scalar = temp / (temp + 1) / (temp + 1);
+				for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++)
+					for (unsigned int j = instance.A_csr_row_ptr[idx]; j < instance.A_csr_row_ptr[idx + 1]; j++)
+						trueH[instance.A_csr_col_idx[i] * instance.m + instance.A_csr_col_idx[j]] +=
+						    instance.A_csr_values[i] * instance.A_csr_values[j] / instance.n;
 
-			// }
-			// for (unsigned int idx = 0; idx < instance.m; idx++){
-			// 	trueH[idx * instance.m + idx] += instance.lambda;
-			// 	woodburyH[idx * instance.m + idx] += instance.lambda;
-			// }
+			}
+			for (unsigned int idx = 0; idx < instance.m; idx++){
+				trueH[idx * instance.m + idx] += instance.lambda;
+				woodburyH[idx * instance.m + idx] += instance.lambda;
+			}
 
-			// CGSolver(trueH, instance.m, gradient, vk);
-			// cblas_daxpy(instance.m * instance.m, -1.0, &woodburyH[0], 1, &trueH[0], 1);
-			// double err = cblas_l2_norm(instance.m * instance.m, &trueH[0], 1);
-			// cout<<err<<endl;
+			CGSolver(trueH, instance.m, gradient, vk);
+			cblas_daxpy(instance.m * instance.m, -1.0, &woodburyH[0], 1, &trueH[0], 1);
+			double err = cblas_l2_norm(instance.m * instance.m, &trueH[0], 1);
+			cout<<err<<endl;
 
 
 		}
