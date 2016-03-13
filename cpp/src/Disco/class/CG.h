@@ -718,6 +718,8 @@ public:
 			kappa = kappa * (1.0 - eta * diag);
 			S[k] = S[k - 1] + eta / kappa / em;
 
+			finish = gettime_();
+			elapsedTime += finish - start;
 			if ( (k % instance.n) == 0) {
 
 				for (unsigned int i = 0; i < instance.m; i++) {
@@ -729,8 +731,6 @@ public:
 				lossFunction->computeGradient(w, gradient, xTw, instance, world, mode);
 				double grad_norm = cblas_l2_norm(instance.m, &gradient[0], 1);
 				int inner_iter = 0;
-				finish = gettime_();
-				elapsedTime += finish - start;
 				int ep = floor(k / instance.n);
 				output(instance, ep, inner_iter, elapsedTime, constantSum, objective, grad_norm, logFile, world, mode);
 

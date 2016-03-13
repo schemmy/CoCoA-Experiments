@@ -45,7 +45,7 @@ int main(int argc, char *argv[]) {
 
 
 	int mode = distributedSettings.LocalMethods;
-	if (mode == 1 || mode == 3 || mode == 4 || mode == 5 || mode == 6) {
+	if (mode == 1 || mode == 3 || mode == 4 || mode == 5 || mode == 6 || mode == 7) {
 		loadDistributedSparseSVMRowData(ctx.matrixAFile, world.rank(), world.size(), instance, false);
 		unsigned int finalM;
 		vall_reduce_maximum(world, &instance.m, &finalM, 1);
@@ -63,7 +63,7 @@ int main(int argc, char *argv[]) {
 	std::vector<double> w(instance.m);
 	//for (unsigned int i = 0; i < instance.m; i++) w[i] = 0.5;
 	double rho = 1.0 / instance.n;
-	double mu = 0.01;
+	double mu = 0.1;
 	double gamma;
 	if (distributedSettings.APPROX) {
 		gamma = 1;
@@ -108,6 +108,9 @@ int main(int argc, char *argv[]) {
 		break;
 	case 3:
 		CGmethod.CG_SAG(w, instance, preConData, world, logFile);
+		break;
+	case 7:
+		CGmethod.SVRG(w, instance, world, logFile);
 		break;
 	default:
 		break;

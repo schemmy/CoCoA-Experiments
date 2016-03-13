@@ -74,7 +74,7 @@ public:
 			oneToN[idx] = idx;
 
 		maxIter = 10000;
-		SVRGFreq = 500;
+		SVRGFreq = 1000;
 
 	}
 
@@ -157,8 +157,55 @@ public:
 
 	}
 
+	// useless
+	void SH_SAG(std::vector<D> &w, ProblemData<I, D> & instance, boost::mpi::communicator & world, std::ofstream &logFile) {
+
+		int mode = 1;
+		objective[0] = 1.0;
+		std::vector<double> vkList(instance.m * 100);
+		std::vector<double> vkAvg(instance.m);
+
+		for (int iter = 1; iter <= maxIter; iter++) {
+
+			geneRandIdx(oneToN, randIdx, instance.n, batchHessian);
+			geneRandIdx(oneToN, randIdxGrad, instance.n, batchGrad);
+
+			start = gettime_();
+
+			lossFunction->computeStoGrad_SVRG(iter, SVRGFreq, batchGrad, w, wRec, instance, xTw, xTwRec,
+			                                  gradientFull, gradientRec, gradient, randIdxGrad);
+
+			lossFunction->StoWoodburyHGet(w, instance, batchHessian, woodburyH, xTw, randIdx, diag);
+
+			lossFunction->StoWoodburySolve(batchHessian, w, instance, woodburyH, gradient, woodburyZHVTy,
+			                               woodburyVTy, woodburyHVTy, vk, randIdx);
+
+			int yu = (iter - 1) % 100;
 
 
+			for (unsigned int i = 0; i < instance.m; i++) {
+				vkAvg[i] -= vkList[yu * instance.m + i];
+				vkAvg[i] += vk[i];
+				w[i] =  w[i] - 0.000005 * vkAvg[i];
+			}
+			cblas_dcopy(instance.m, &vk[0], 1, &vkList[yu * instance.m], 1);
+
+
+			finish = gettime_();
+			elapsedTime += finish - start;
+			if ( iter % 1000 == 1) {
+				lossFunction->computeVectorTimesData(w, instance, xTw, world, mode);
+				lossFunction->computeObjective(w, instance, xTw, objective[0], world, mode);
+				lossFunction->computeGradient(w, gradient, xTw, instance, world, mode);
+				double grad_norm = cblas_l2_norm(instance.m, &gradient[0], 1);
+				int inner_iter = 0;
+				output(instance, iter, inner_iter, elapsedTime, objective, grad_norm, logFile, world, mode);
+			}
+
+
+		}
+
+	}
 
 	void output(ProblemData<unsigned int, double> &instance, int &iter, int &inner_iter, double & elapsedTime,
 	            std::vector<double> &objective, double & grad_norm,
