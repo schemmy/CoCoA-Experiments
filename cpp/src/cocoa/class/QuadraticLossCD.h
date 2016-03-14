@@ -101,7 +101,7 @@ public:
 				cblas_sum_of_vectors(y, delta, c3);
 				thetaOld = theta;
 				thetasquare = theta * theta;
-				theta = 0.5 * sqrt(thetasquare * thetasquare + 4 * thetasquare) - 0.5 * thetasquare;
+				//theta = 0.5 * sqrt(thetasquare * thetasquare + 4 * thetasquare) - 0.5 * thetasquare;
 
 			}
 			for (unsigned int idx = 0; idx < instance.n; idx++)
