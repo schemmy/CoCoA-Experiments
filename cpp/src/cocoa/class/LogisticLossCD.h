@@ -321,7 +321,8 @@ public:
 					D epsilon = 1e-5;
 
 					if (alphaI == 0) {deltaAl = 0.1 * instance.b[idx];}
-					D FirstDerivative = dotProduct * instance.b[idx] + instance.Li[idx] * deltaAl + 2.0 * gma * rhoMul * u[idx]
+	//sssssssssssssss
+					D FirstDerivative = dotProduct * instance.b[idx] + instance.Li[idx] * deltaAl + 2.0 * gma * rhoMul * u[idx] - gma * deltaAl
 					                     - log(1.0 - (alphaI + deltaAl) / instance.b[idx]) / instance.b[idx]
 					                    + log((alphaI + deltaAl) / instance.b[idx]) / instance.b[idx];
 
