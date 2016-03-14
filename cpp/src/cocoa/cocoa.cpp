@@ -198,6 +198,9 @@ int main(int argc, char *argv[]) {
     case 7:
          lf->subproblem_solver_SDCA_without_duality(instance, deltaAlpha, w, wBuffer, deltaW,
                   distributedSettings, world, gamma, ctx, logFile);
+    case 8:
+         lf->Acce_subproblem_solver_SDCA(instance, deltaAlpha, w, wBuffer, deltaW,
+                  distributedSettings, world, gamma, ctx, logFile);
     	break;
 	
 	default:

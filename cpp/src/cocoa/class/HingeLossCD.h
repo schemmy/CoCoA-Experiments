@@ -85,7 +85,7 @@ public:
 					D norm = cblas_l2_norm(instance.A_csr_row_ptr[idx + 1] - instance.A_csr_row_ptr[idx],
 					                       &instance.A_csr_values[instance.A_csr_row_ptr[idx]], 1);
 					instance.Li[idx] = 1.0 / (norm * norm * instance.penalty *
-					                          instance.oneOverLambdaN * theta * world.size() + 1.0);
+					                          instance.oneOverLambdaN * theta * world.size());
 
 					D alphaI = z[idx] +  delta[idx];
 					D deltaAl = 0;
@@ -93,7 +93,7 @@ public:
 					deltaAl = (part > 1 - alphaI) ? 1 - alphaI : (part < -alphaI ? -alphaI : part);
 					delta[idx] += deltaAl;
 					for (L i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
-						deltaZA[instance.A_csr_col_idx[i]] += instance.oneOverLambdaN * deltaAl
+						deltaZA[instance.A_csr_col_idx[i]] += instance.oneOverLambdaN * deltaAl * c1
 						                                      * instance.A_csr_values[i] * instance.b[idx];
 						deltaUA[instance.A_csr_col_idx[i]] += instance.oneOverLambdaN * deltaAl * c2
 						                                      * instance.A_csr_values[i] * instance.b[idx];
@@ -102,12 +102,12 @@ public:
 					}
 
 				}
-				for (unsigned int i = 0; i < instance.m; i++) {
-					deltaW[i] = thetaOld * thetaOld * deltaUA[i] + deltaZA[i];
-				}
-				vall_reduce(world, deltaW, wBuffer);
+				// for (unsigned int i = 0; i < instance.m; i++) {
+				// 	deltaW[i] = thetaOld * thetaOld * deltaUA[i] + deltaZA[i];
+				// }
+				// vall_reduce(world, deltaW, wBuffer);
+				//cblas_sum_of_vectors(w, wBuffer, gamma);
 				vall_reduce(world, deltaYA, YABuffer);
-				cblas_sum_of_vectors(w, wBuffer, gamma);
 				cblas_sum_of_vectors(yA, YABuffer, gamma);
 				cblas_sum_of_vectors(z, delta, gamma * c1);
 				cblas_sum_of_vectors(u, delta, gamma * c2);
@@ -115,10 +115,19 @@ public:
 				thetaOld = theta;
 				thetasquare = theta * theta;
 				theta = 0.5 * sqrt(thetasquare * thetasquare + 4 * thetasquare) - 0.5 * thetasquare;
-
 			}
 			for (unsigned int idx = 0; idx < instance.n; idx++)
 				instance.x[idx] = thetaOld * thetaOld * u[idx] + z[idx];
+			cblas_set_to_zero(w);
+			cblas_set_to_zero(deltaW);
+			for (L idx = 0; idx < instance.n; idx++) {
+				for (L i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
+					deltaW[instance.A_csr_col_idx[i]] += instance.oneOverLambdaN * instance.x[idx]
+					                                     * instance.A_csr_values[i] * instance.b[idx];
+				}
+			}
+			vall_reduce(world, deltaW, wBuffer);
+			cblas_sum_of_vectors(w, wBuffer, gamma);
 			double primalError;
 			double dualError;
 

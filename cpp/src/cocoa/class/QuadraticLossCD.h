@@ -35,111 +35,9 @@ public:
 	}
 
 
-
 	virtual void subproblem_solver_SDCA(ProblemData<L, D> &instance, std::vector<D> &deltaAlpha, std::vector<D> &w,
 	                                    std::vector<D> &wBuffer, std::vector<D> &deltaW, DistributedSettings & distributedSettings,
 	                                    mpi::communicator &world, D gamma, Context &ctx, std::ofstream &logFile) {
-
-		double start = 0;
-		double finish = 0;
-		double elapsedTime = 0;
-		std::vector<double> u(instance.n);
-		std::vector<double> z(instance.n);
-		std::vector<double> y(instance.n);
-		std::vector<double> zA(instance.m);
-		std::vector<double> yA(instance.m);
-		std::vector<double> deltaZA(instance.m);
-		std::vector<double> deltaYA(instance.m);
-		std::vector<double> YABuffer(instance.m);
-		std::vector<double> deltaUA(instance.m);
-		std::vector<double> delta(instance.n);
-		double theta = 1.0 / world.size();
-		double thetaOld = theta;
-		double thetasquare;
-
-		for (unsigned int t = 0; t < distributedSettings.iters_communicate_count; t++) {
-
-			start = gettime_();
-
-			for (int jj = 0; jj < distributedSettings.iters_bulkIterations_count; jj++) {
-				cblas_set_to_zero(deltaZA);
-				cblas_set_to_zero(deltaUA);
-				cblas_set_to_zero(deltaYA);
-				cblas_set_to_zero(deltaW);
-				cblas_set_to_zero(delta);
-				double c1 = 1.0;
-				double c2 = - (1.0 - world.size() * theta) / theta / theta;
-				double c3 = world.size() * theta;
-
-				for (unsigned int it = 0; it < distributedSettings.iterationsPerThread; it++) {
-					L idx = rand() / (0.0 + RAND_MAX) * instance.n;
-					// compute "delta alpha" = argmin
-					D dotProduct = 0;
-					for (L i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
-						dotProduct += (yA[instance.A_csr_col_idx[i]]
-						               + 1.0 * instance.penalty * deltaYA[instance.A_csr_col_idx[i]])
-						              * instance.A_csr_values[i];
-					}
-					D norm = cblas_l2_norm(instance.A_csr_row_ptr[idx + 1] - instance.A_csr_row_ptr[idx],
-					                       &instance.A_csr_values[instance.A_csr_row_ptr[idx]], 1);
-					instance.Li[idx] = 1.0 / (norm * norm * instance.penalty * 
-											instance.oneOverLambdaN * theta * world.size() + 1.0);
-					
-					D alphaI = z[idx] + delta[idx];
-					D deltaAl = 0; // FINISH
-					deltaAl = (1.0 * instance.b[idx] - alphaI - dotProduct * instance.b[idx]) * instance.Li[idx];
-					delta[idx] += deltaAl;
-					for (L i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
-						deltaZA[instance.A_csr_col_idx[i]] += instance.oneOverLambdaN * deltaAl
-						                                      * instance.A_csr_values[i] * instance.b[idx];
-						deltaUA[instance.A_csr_col_idx[i]] += instance.oneOverLambdaN * deltaAl * c2
-						                                      * instance.A_csr_values[i] * instance.b[idx];
-						deltaYA[instance.A_csr_col_idx[i]] += instance.oneOverLambdaN * deltaAl * c3
-						                                      * instance.A_csr_values[i] * instance.b[idx];
-					}
-
-				}
-				for (unsigned int i = 0; i < instance.m; i++) {
-					deltaW[i] = thetaOld * thetaOld * deltaUA[i] + deltaZA[i];
-				}
-				vall_reduce(world, deltaW, wBuffer);
-				vall_reduce(world, deltaYA, YABuffer);
-				cblas_sum_of_vectors(w, wBuffer, gamma);
-				cblas_sum_of_vectors(yA, YABuffer, gamma);
-				cblas_sum_of_vectors(z, delta, gamma * c1);
-				cblas_sum_of_vectors(u, delta, gamma * c2);
-				cblas_sum_of_vectors(y, delta, gamma * c3);
-				thetaOld = theta;
-				thetasquare = theta * theta;
-				theta = 0.5 * sqrt(thetasquare * thetasquare + 4 * thetasquare) - 0.5 * thetasquare;
-
-			}
-			for (unsigned int idx = 0; idx < instance.n; idx++)
-				instance.x[idx] = thetaOld * thetaOld * u[idx] + z[idx];
-
-			double primalError;
-			double dualError;
-
-			finish = gettime_();
-			elapsedTime += finish - start;
-
-			this->computeObjectiveValue(instance, world, w, dualError, primalError);
-
-			if (ctx.settings.verbose) {
-				cout << "Iteration " << t << " elapsed time " << elapsedTime << "  error " << primalError << "    "
-				     << dualError << "    " << primalError + dualError << endl;
-
-				logFile << t << "," << elapsedTime << "," << primalError << "," << dualError << ","
-				        << primalError + dualError << endl;
-
-			}
-		}
-
-	}
-
-	virtual void subproblem_solver_SDCA_backup(ProblemData<L, D> &instance, std::vector<D> &deltaAlpha, std::vector<D> &w,
-	        std::vector<D> &wBuffer, std::vector<D> &deltaW, DistributedSettings & distributedSettings,
-	        mpi::communicator &world, D gamma, Context &ctx, std::ofstream &logFile) {
 
 		double start = 0;
 		double finish = 0;
@@ -854,6 +752,207 @@ public:
 
 	}
 
+	virtual void Acce_subproblem_solver_SDCA(ProblemData<L, D> &instance, std::vector<D> &deltaAlpha, std::vector<D> &w,
+	        std::vector<D> &wBuffer, std::vector<D> &deltaW, DistributedSettings & distributedSettings,
+	        mpi::communicator &world, D gamma, Context &ctx, std::ofstream &logFile) {
+
+		double start = 0;
+		double finish = 0;
+		double elapsedTime = 0;
+		std::vector<double> u(instance.n);
+		std::vector<double> v(instance.n);
+		std::vector<double> p(instance.m);
+		std::vector<double> q(instance.m);
+		std::vector<double> deltap(instance.m);
+		std::vector<double> deltaq(instance.m);
+		std::vector<double> pBuffer(instance.m);
+		std::vector<double> qBuffer(instance.m);
+		std::vector<double> delta(instance.n);
+
+		double gma = 0.1;
+		double mu = gma / instance.oneOverLambdaN / (gma / instance.oneOverLambdaN);
+		//double mu = gma / instance.oneOverLambdaN / (0.01 + gma / instance.oneOverLambdaN);
+		double rho = (1.0 - sqrt(mu) / instance.total_n) / (1.0 + sqrt(mu) / instance.total_n);
+		double rhoMul = rho;
+
+		for (unsigned int t = 0; t < distributedSettings.iters_communicate_count; t++) {
+
+			start = gettime_();
+
+			for (int jj = 0; jj < distributedSettings.iters_bulkIterations_count; jj++) {
+				cblas_set_to_zero(deltap);
+				cblas_set_to_zero(deltaq);
+				cblas_set_to_zero(delta);
+				double c1 = -(1.0 - sqrt(mu)) / 2 / rhoMul;
+				double c2 = (1.0 + sqrt(mu)) / 2;
+
+				for (unsigned int it = 0; it < distributedSettings.iterationsPerThread; it++) {
+					L idx = rand() / (0.0 + RAND_MAX) * instance.n;
+					// compute "delta alpha" = argmin
+					D dotProduct1 = 0;
+					D dotProduct2 = 0;
+					D dotProduct = 0;
+					for (L i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
+						dotProduct1 += (p[instance.A_csr_col_idx[i]]
+						                + 1.0 * instance.penalty * deltap[instance.A_csr_col_idx[i]])
+						               * instance.A_csr_values[i];
+						dotProduct2 += (q[instance.A_csr_col_idx[i]]
+						                + 1.0 * instance.penalty * deltaq[instance.A_csr_col_idx[i]])
+						               * instance.A_csr_values[i];
+					}
+					dotProduct = rhoMul * dotProduct1 + dotProduct2;
+					D alphaI = -1.0 * rhoMul * u[idx] + v[idx];
+
+					D norm = cblas_l2_norm(instance.A_csr_row_ptr[idx + 1] - instance.A_csr_row_ptr[idx],
+					                       &instance.A_csr_values[instance.A_csr_row_ptr[idx]], 1);
+					instance.Li[idx] = 1.0 / (sqrt(mu) * instance.oneOverLambdaN * (norm * norm * instance.penalty +
+					                          gma / instance.oneOverLambdaN) + 1.0 - gma);
+
+					D deltaAl = 0; // FINISH
+					deltaAl = (1.0 * instance.b[idx] - alphaI - dotProduct * instance.b[idx]) * instance.Li[idx];
+					delta[idx] += deltaAl;
+					for (L i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
+						deltap[instance.A_csr_col_idx[i]] += instance.oneOverLambdaN * deltaAl * c1
+						                                     * instance.A_csr_values[i] * instance.b[idx];
+						deltaq[instance.A_csr_col_idx[i]] += instance.oneOverLambdaN * deltaAl * c2
+						                                     * instance.A_csr_values[i] * instance.b[idx];
+					}
+
+				}
+				vall_reduce(world, deltap, pBuffer);
+				vall_reduce(world, deltaq, qBuffer);
+				cblas_sum_of_vectors(p, pBuffer, gamma);
+				cblas_sum_of_vectors(q, qBuffer, gamma);
+				cblas_sum_of_vectors(u, delta, gamma * c1);
+				cblas_sum_of_vectors(v, delta, gamma * c2);
+
+				rhoMul *= rho;
+			}
+
+			finish = gettime_();
+			elapsedTime += finish - start;
+			for (unsigned int idx = 0; idx < instance.n; idx++)
+				instance.x[idx] = rhoMul / rho * u[idx] + v[idx];
+			for (unsigned int i = 0; i < instance.m; i++)
+				w[i] = rhoMul / rho * p[i] + q[i];
+
+			double primalError;
+			double dualError;
+
+
+			this->computeObjectiveValue(instance, world, w, dualError, primalError);
+
+			if (ctx.settings.verbose) {
+				cout << "Iteration " << t << " elapsed time " << elapsedTime << "  error " << primalError << "    "
+				     << dualError << "    " << primalError + dualError << endl;
+
+				logFile << t << "," << elapsedTime << "," << primalError << "," << dualError << ","
+				        << primalError + dualError << endl;
+
+			}
+		}
+
+	}
+	// virtual void subproblem_solver_SDCA(ProblemData<L, D> &instance, std::vector<D> &deltaAlpha, std::vector<D> &w,
+	//                                     std::vector<D> &wBuffer, std::vector<D> &deltaW, DistributedSettings & distributedSettings,
+	//                                     mpi::communicator &world, D gamma, Context &ctx, std::ofstream &logFile) {
+
+	// 	double start = 0;
+	// 	double finish = 0;
+	// 	double elapsedTime = 0;
+	// 	std::vector<double> u(instance.n);
+	// 	std::vector<double> z(instance.n);
+	// 	std::vector<double> y(instance.n);
+	// 	std::vector<double> zA(instance.m);
+	// 	std::vector<double> yA(instance.m);
+	// 	std::vector<double> deltaZA(instance.m);
+	// 	std::vector<double> deltaYA(instance.m);
+	// 	std::vector<double> YABuffer(instance.m);
+	// 	std::vector<double> deltaUA(instance.m);
+	// 	std::vector<double> delta(instance.n);
+	// 	double theta = 1.0 / world.size();
+	// 	double thetaOld = theta;
+	// 	double thetasquare;
+
+	// 	for (unsigned int t = 0; t < distributedSettings.iters_communicate_count; t++) {
+
+	// 		start = gettime_();
+
+	// 		for (int jj = 0; jj < distributedSettings.iters_bulkIterations_count; jj++) {
+	// 			cblas_set_to_zero(deltaZA);
+	// 			cblas_set_to_zero(deltaUA);
+	// 			cblas_set_to_zero(deltaYA);
+	// 			cblas_set_to_zero(deltaW);
+	// 			cblas_set_to_zero(delta);
+	// 			double c1 = 1.0;
+	// 			double c2 = - (1.0 - world.size() * theta) / theta / theta;
+	// 			double c3 = world.size() * theta;
+
+	// 			for (unsigned int it = 0; it < distributedSettings.iterationsPerThread; it++) {
+	// 				L idx = rand() / (0.0 + RAND_MAX) * instance.n;
+	// 				// compute "delta alpha" = argmin
+	// 				D dotProduct = 0;
+	// 				for (L i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
+	// 					dotProduct += (yA[instance.A_csr_col_idx[i]]
+	// 					               + 1.0 * instance.penalty * deltaYA[instance.A_csr_col_idx[i]])
+	// 					              * instance.A_csr_values[i];
+	// 				}
+	// 				D norm = cblas_l2_norm(instance.A_csr_row_ptr[idx + 1] - instance.A_csr_row_ptr[idx],
+	// 				                       &instance.A_csr_values[instance.A_csr_row_ptr[idx]], 1);
+	// 				instance.Li[idx] = 1.0 / (norm * norm * instance.penalty *
+	// 										instance.oneOverLambdaN * theta * world.size() + 1.0);
+
+	// 				D alphaI = z[idx] + delta[idx];
+	// 				D deltaAl = 0; // FINISH
+	// 				deltaAl = (1.0 * instance.b[idx] - alphaI - dotProduct * instance.b[idx]) * instance.Li[idx];
+	// 				delta[idx] += deltaAl;
+	// 				for (L i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
+	// 					deltaZA[instance.A_csr_col_idx[i]] += instance.oneOverLambdaN * deltaAl
+	// 					                                      * instance.A_csr_values[i] * instance.b[idx];
+	// 					deltaUA[instance.A_csr_col_idx[i]] += instance.oneOverLambdaN * deltaAl * c2
+	// 					                                      * instance.A_csr_values[i] * instance.b[idx];
+	// 					deltaYA[instance.A_csr_col_idx[i]] += instance.oneOverLambdaN * deltaAl * c3
+	// 					                                      * instance.A_csr_values[i] * instance.b[idx];
+	// 				}
+
+	// 			}
+	// 			for (unsigned int i = 0; i < instance.m; i++) {
+	// 				deltaW[i] = thetaOld * thetaOld * deltaUA[i] + deltaZA[i];
+	// 			}
+	// 			vall_reduce(world, deltaW, wBuffer);
+	// 			vall_reduce(world, deltaYA, YABuffer);
+	// 			cblas_sum_of_vectors(w, wBuffer, gamma);
+	// 			cblas_sum_of_vectors(yA, YABuffer, gamma);
+	// 			cblas_sum_of_vectors(z, delta, gamma * c1);
+	// 			cblas_sum_of_vectors(u, delta, gamma * c2);
+	// 			cblas_sum_of_vectors(y, delta, gamma * c3);
+	// 			thetaOld = theta;
+	// 			thetasquare = theta * theta;
+	// 			theta = 0.5 * sqrt(thetasquare * thetasquare + 4 * thetasquare) - 0.5 * thetasquare;
+
+	// 		}
+	// 		for (unsigned int idx = 0; idx < instance.n; idx++)
+	// 			instance.x[idx] = thetaOld * thetaOld * u[idx] + z[idx];
+
+	// 		double primalError;
+	// 		double dualError;
+
+	// 		finish = gettime_();
+	// 		elapsedTime += finish - start;
+
+	// 		this->computeObjectiveValue(instance, world, w, dualError, primalError);
+
+	// 		if (ctx.settings.verbose) {
+	// 			cout << "Iteration " << t << " elapsed time " << elapsedTime << "  error " << primalError << "    "
+	// 			     << dualError << "    " << primalError + dualError << endl;
+
+	// 			logFile << t << "," << elapsedTime << "," << primalError << "," << dualError << ","
+	// 			        << primalError + dualError << endl;
+
+	// 		}
+	// 	}
+
+	// }
 };
 
 #endif /* QUADRATICLOSSCD_H_ */
