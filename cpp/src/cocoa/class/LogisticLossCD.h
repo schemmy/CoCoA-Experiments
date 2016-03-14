@@ -277,9 +277,10 @@ public:
 		std::vector<double> pBuffer(instance.m);
 		std::vector<double> qBuffer(instance.m);
 		std::vector<double> delta(instance.n);
+		instance.Li.resize(instance.n);
 
 		double gma = 0.1;
-		double mu = gma / instance.oneOverLambdaN / (gma / instance.oneOverLambdaN);
+		double mu = gma / instance.oneOverLambdaN / (1.0 + gma / instance.oneOverLambdaN);
 		double rho = (1.0 - sqrt(mu) / instance.total_n) / (1.0 + sqrt(mu) / instance.total_n);
 		double rhoMul = rho;
 
@@ -319,7 +320,6 @@ public:
 
 					D deltaAl = 0.0;
 					D epsilon = 1e-5;
-
 					if (alphaI == 0) {deltaAl = 0.1 * instance.b[idx];}
 	//sssssssssssssss
 					D FirstDerivative = dotProduct * instance.b[idx] + instance.Li[idx] * deltaAl + 2.0 * gma * rhoMul * u[idx] - gma * deltaAl
