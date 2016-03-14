@@ -126,6 +126,7 @@ public:
 		}
 
 	}
+	
 	virtual void subproblem_solver_SDCA_backup(ProblemData<L, D> &instance, std::vector<D> &deltaAlpha, std::vector<D> &w,
 	        std::vector<D> &wBuffer, std::vector<D> &deltaW, DistributedSettings & distributedSettings,
 	        mpi::communicator &world, D gamma, Context &ctx, std::ofstream &logFile) {
