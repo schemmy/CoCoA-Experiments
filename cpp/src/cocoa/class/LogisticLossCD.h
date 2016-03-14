@@ -323,13 +323,14 @@ public:
 					if (alphaI == 0) {deltaAl = 0.1 * instance.b[idx];}
 	//sssssssssssssss
 					D FirstDerivative = dotProduct * instance.b[idx] + instance.Li[idx] * deltaAl + 2.0 * gma * rhoMul * u[idx] - gma * deltaAl
-					                     - log(1.0 - (alphaI + deltaAl) / instance.b[idx]) / instance.b[idx]
-					                    + log((alphaI + deltaAl) / instance.b[idx]) / instance.b[idx];
+					                     - log(1.0 - (-rhoMul * u[idx] + v[idx] + deltaAl) / instance.b[idx]) / instance.b[idx]
+					                    + log((-rhoMul * u[idx] + v[idx] + deltaAl) / instance.b[idx]) / instance.b[idx];
 
 					while (FirstDerivative > epsilon || FirstDerivative < -1.0 * epsilon)
 					{
-						D SecondDerivative = 1.0 * instance.penalty * norm * norm * instance.oneOverLambdaN
-						                     + 1.0 / (1.0 - (alphaI + deltaAl) / instance.b[idx]) + 1.0 / (alphaI + deltaAl) / instance.b[idx];
+						D SecondDerivative = instance.Li[idx] - gma 
+						                     + 1.0 / (1.0 - (-rhoMul * u[idx] + v[idx] + deltaAl) / instance.b[idx]) 
+						                     + 1.0 / (-rhoMul * u[idx] + v[idx] + deltaAl)/ instance.b[idx];
 						deltaAl = 1.0 * deltaAl - FirstDerivative / SecondDerivative;
 
 						if (instance.b[idx] == 1.0)
@@ -337,9 +338,9 @@ public:
 						else if (instance.b[idx] == -1.0)
 							deltaAl = (deltaAl > -alphaI) ? -alphaI - 1e-15 : (deltaAl < -1.0 - alphaI ? -1.0 - alphaI + 1e-15 : deltaAl);
 						//if ((alphaI+ deltaAl)/instance.b[idx] == -1) cout<<idx<<endl;
-						FirstDerivative = 1.0 * instance.penalty * deltaAl * instance.oneOverLambdaN * norm * norm
-						                  + dotProduct * instance.b[idx] - log(1.0 - (alphaI + deltaAl) / instance.b[idx]) / instance.b[idx]
-						                  + log((alphaI + deltaAl) / instance.b[idx]) / instance.b[idx];
+						FirstDerivative = dotProduct * instance.b[idx] + instance.Li[idx] * deltaAl + 2.0 * gma * rhoMul * u[idx] - gma * deltaAl
+					                     - log(1.0 - (-rhoMul * u[idx] + v[idx] + deltaAl) / instance.b[idx]) / instance.b[idx]
+					                    + log((-rhoMul * u[idx] + v[idx] + deltaAl) / instance.b[idx]) / instance.b[idx];
 					}
 
 					delta[idx] += deltaAl;
