@@ -809,7 +809,8 @@ public:
 					                          gma / instance.oneOverLambdaN) + 1.0 - gma);
 
 					D deltaAl = 0; // FINISH
-					deltaAl = (1.0 * instance.b[idx] - alphaI - dotProduct * instance.b[idx]) * instance.Li[idx];
+					deltaAl = (1.0 * instance.b[idx] - alphaI - dotProduct * instance.b[idx]
+						        -2.0 * gma * rhoMul * u[idx]) * instance.Li[idx];
 					delta[idx] += deltaAl;
 					for (L i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
 						deltap[instance.A_csr_col_idx[i]] += instance.oneOverLambdaN * deltaAl * c1

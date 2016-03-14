@@ -309,20 +309,20 @@ public:
 						                + 1.0 * instance.penalty * deltaq[instance.A_csr_col_idx[i]])
 						               * instance.A_csr_values[i];
 					}
-					dotProduct = rhoMul * dotProduct1 + dotProduct2
+					dotProduct = rhoMul * dotProduct1 + dotProduct2;
 					D alphaI = -1.0 * rhoMul * u[idx] + v[idx];
 
 					D norm = cblas_l2_norm(instance.A_csr_row_ptr[idx + 1] - instance.A_csr_row_ptr[idx],
 					                       &instance.A_csr_values[instance.A_csr_row_ptr[idx]], 1);
-					instance.Li[idx] = 1.0 / (sqrt(mu) * instance.oneOverLambdaN * (norm * norm * instance.penalty +
-					                          gma / instance.oneOverLambdaN) + 1.0 - gma);
+					instance.Li[idx] = sqrt(mu) * instance.oneOverLambdaN * (norm * norm * instance.penalty +
+					                          gma / instance.oneOverLambdaN);
 
 					D deltaAl = 0.0;
 					D epsilon = 1e-5;
 
 					if (alphaI == 0) {deltaAl = 0.1 * instance.b[idx];}
-					D FirstDerivative = 1.0 * instance.penalty * deltaAl * instance.oneOverLambdaN * norm * norm
-					                    + dotProduct * instance.b[idx] - log(1.0 - (alphaI + deltaAl) / instance.b[idx]) / instance.b[idx]
+					D FirstDerivative = dotProduct * instance.b[idx] + instance.Li[idx] * deltaAl + 2.0 * gma * rhoMul * u[idx]
+					                     - log(1.0 - (alphaI + deltaAl) / instance.b[idx]) / instance.b[idx]
 					                    + log((alphaI + deltaAl) / instance.b[idx]) / instance.b[idx];
 
 					while (FirstDerivative > epsilon || FirstDerivative < -1.0 * epsilon)
