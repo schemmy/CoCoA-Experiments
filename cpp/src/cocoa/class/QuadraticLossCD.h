@@ -43,10 +43,16 @@ public:
 		double start = 0;
 		double finish = 0;
 		double elapsedTime = 0;
-		std::vector<double> y(instance.m);
-		std::vector<double> v(instance.m);
+		std::vector<double> u(instance.n);
+		std::vector<double> z(instance.n);
+		std::vector<double> y(instance.n);
+		std::vector<double> zA(instance.m);
+		std::vector<double> ZABuffer(instance.m);
+		std::vector<double> deltaZA(instance.m);
+		std::vector<double> deltaUA(instance.m);
+		std::vector<double> delta(instance.n);
 		double theta = 1.0 / world.size();
-		double theta_ = theta;
+		double thetaOld = theta;
 		double thetasquare;
 
 		for (unsigned int t = 0; t < distributedSettings.iters_communicate_count; t++) {
@@ -54,40 +60,53 @@ public:
 			start = gettime_();
 
 			for (int jj = 0; jj < distributedSettings.iters_bulkIterations_count; jj++) {
-				cblas_set_to_zero(deltaW);
-				cblas_set_to_zero(deltaAlpha);
+				cblas_set_to_zero(deltaZA);
+				cblas_set_to_zero(deltaUA);
+				cblas_set_to_zero(delta);
+				double c1 = 1.0;
+				double c2 = -(1.0 - world.size() * theta) / theta / theta;
+				double c3 = world.size() * theta;
 
 				for (unsigned int it = 0; it < distributedSettings.iterationsPerThread; it++) {
 					L idx = rand() / (0.0 + RAND_MAX) * instance.n;
 					// compute "delta alpha" = argmin
 					D dotProduct = 0;
 					for (L i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
-						dotProduct += (v[instance.A_csr_col_idx[i]]
-						               + 1.0 * instance.penalty *world.size() * theta * deltaW[instance.A_csr_col_idx[i]])
+						dotProduct += (zA[instance.A_csr_col_idx[i]]
+						               + 1.0 * deltaZA[instance.A_csr_col_idx[i]])
 						              * instance.A_csr_values[i];
 					}
-					D alphaI = instance.x[idx] + deltaAlpha[idx];
+					D alphaI = y[idx] + world.size() * theta * delta[idx];
 					D deltaAl = 0; // FINISH
-					deltaAl = (1.0 * instance.b[idx] - alphaI - dotProduct * instance.b[idx]) * instance.Li[idx];
-					deltaAlpha[idx] += deltaAl;
-					for (L i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++)
-						deltaW[instance.A_csr_col_idx[i]] += instance.oneOverLambdaN * deltaAl
+					deltaAl = (instance.b[idx] - alphaI - dotProduct * instance.b[idx]) * instance.Li[idx];
+					delta[idx] += deltaAl;
+					for (L i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++){
+						deltaZA[instance.A_csr_col_idx[i]] += instance.oneOverLambdaN * deltaAl
 						                                     * instance.A_csr_values[i] * instance.b[idx];
+						deltaUA[instance.A_csr_col_idx[i]] += instance.oneOverLambdaN * deltaAl * c2
+						                                     * instance.A_csr_values[i] * instance.b[idx];					
+						}
 
 				}
+				cblas_set_to_zero(deltaW);
+				for (unsigned int i = 0; i < instance.m; i++){
+					deltaW[i] = thetaOld * thetaOld * deltaUA[i] + deltaZA[i];
+				}
 				vall_reduce(world, deltaW, wBuffer);
-				double c1;
-				c1 = (gamma - (1.0 - world.size()* theta) / theta / theta * theta_ * theta_);
-				cblas_sum_of_vectors(w, wBuffer, c1);
-				cblas_sum_of_vectors(instance.x, deltaAlpha, c1);
-				double c2 = world.size() * theta;
-				cblas_sum_of_vectors(v, wBuffer, c2);
-				cblas_sum_of_vectors(y, deltaAlpha, c2);
-				theta_ = theta;
+				vall_reduce(world, deltaZA, ZABuffer);
+				cblas_sum_of_vectors(w, wBuffer, gamma);
+				cblas_sum_of_vectors(zA, ZABuffer, gamma);
+				cblas_sum_of_vectors(z, delta, c1);
+				cblas_sum_of_vectors(u, delta, c2);
+				cblas_sum_of_vectors(y, delta, c3);
+				thetaOld = theta;
 				thetasquare = theta * theta;
 				theta = 0.5 * sqrt(thetasquare * thetasquare + 4 * thetasquare) - 0.5 * thetasquare;
 
 			}
+			for (unsigned int idx = 0; idx < instance.n; idx++)
+				instance.x[idx] = thetaOld * thetaOld * u[idx] + z[idx];
+	
 			double primalError;
 			double dualError;
 
@@ -108,8 +127,8 @@ public:
 
 	}
 	virtual void subproblem_solver_SDCA_backup(ProblemData<L, D> &instance, std::vector<D> &deltaAlpha, std::vector<D> &w,
-	                                    std::vector<D> &wBuffer, std::vector<D> &deltaW, DistributedSettings & distributedSettings,
-	                                    mpi::communicator &world, D gamma, Context &ctx, std::ofstream &logFile) {
+	        std::vector<D> &wBuffer, std::vector<D> &deltaW, DistributedSettings & distributedSettings,
+	        mpi::communicator &world, D gamma, Context &ctx, std::ofstream &logFile) {
 
 		double start = 0;
 		double finish = 0;
@@ -381,7 +400,7 @@ public:
 		std::vector<D> AAdeltaAlpha(instance.n);
 		std::vector<D> AAd(instance.n);
 		D temp = 1.0 / instance.total_n / instance.lambda;
-	
+
 		for (unsigned int t = 0; t < distributedSettings.iters_communicate_count; t++) {
 			start = gettime_();
 
@@ -394,13 +413,13 @@ public:
 				stepsize = 0.001 * instance.n;
 				matrixvector(instance.A_csr_values, instance.A_csr_col_idx, instance.A_csr_row_ptr, w, instance.n, gradient_temp1);
 				// vectormatrix_b(deltaAlpha, instance.A_csr_values, instance.A_csr_col_idx, instance.A_csr_row_ptr,
-		  //             instance.b, 1.0, instance.n, gradient_temp2);
+				//             instance.b, 1.0, instance.n, gradient_temp2);
 				// matrixvector(instance.A_csr_values, instance.A_csr_col_idx, instance.A_csr_row_ptr,
-		  //          	gradient_temp2, instance.n, gradient_temp3);
+				//          	gradient_temp2, instance.n, gradient_temp3);
 
 				for (L iter_counter = 0; iter_counter < distributedSettings.iterationsPerThread; iter_counter++) {
 
-						//cout<<gradient_temp3[0]-gradient_temp4[0]<<endl;	
+					//cout<<gradient_temp3[0]-gradient_temp4[0]<<endl;
 					for (L i = 0; i < instance.n; i++) {
 						gradient[i] = 1.0 / instance.total_n * ( gradient_temp1[i] * instance.b[i] + instance.x[i] - instance.b[i]
 						              + 1.0 * instance.penalty * temp * gradient_temp3[i] * instance.b[i] + deltaAlpha[i] );
@@ -413,17 +432,17 @@ public:
 					cblas_dcopy(instance.n, &gradient[0], 1, &old_grad[0], 1);
 
 					vectormatrix_b(deltaAlpha, instance.A_csr_values, instance.A_csr_col_idx, instance.A_csr_row_ptr,
-		               instance.b, 1.0, instance.n, AdeltaAlpha);
+					               instance.b, 1.0, instance.n, AdeltaAlpha);
 					vectormatrix_b(search_direction, instance.A_csr_values, instance.A_csr_col_idx, instance.A_csr_row_ptr,
-		               instance.b, 1.0, instance.n, Ad);
+					               instance.b, 1.0, instance.n, Ad);
 					matrixvector(instance.A_csr_values, instance.A_csr_col_idx, instance.A_csr_row_ptr, AdeltaAlpha, instance.n, AAdeltaAlpha);
 					matrixvector(instance.A_csr_values, instance.A_csr_col_idx, instance.A_csr_row_ptr, Ad, instance.n, AAd);
 
-					this->wolfe_linesearch(instance, deltaAlpha, search_direction, gradient_temp1, 
-						AdeltaAlpha, Ad, AAdeltaAlpha, AAd, w, dualobj, stepsize);
+					this->wolfe_linesearch(instance, deltaAlpha, search_direction, gradient_temp1,
+					                       AdeltaAlpha, Ad, AAdeltaAlpha, AAd, w, dualobj, stepsize);
 					//stepsize =  (old_deltaAlpha[0] - deltaAlpha[0])/search_direction[0];
 //cout<<stepsize<<endl;
-					for (L idx = 0; idx < instance.n; idx++){
+					for (L idx = 0; idx < instance.n; idx++) {
 						sk[instance.n * flag_BFGS + idx] = deltaAlpha[idx] - old_deltaAlpha[idx];
 						gradient_temp3[idx] = AAdeltaAlpha[idx] - stepsize * AAd[idx];
 					}
@@ -669,10 +688,10 @@ public:
 				this->compute_subproproblem_gradient(instance, gradient, deltaAlpha, w);
 				//this->backtrack_linesearch(instance, deltaAlpha, gradient, w, dualobj, a);
 				vectormatrix_b(gradient, instance.A_csr_values, instance.A_csr_col_idx, instance.A_csr_row_ptr,
-		               instance.b, 1.0, instance.n, Ad);
+				               instance.b, 1.0, instance.n, Ad);
 				matrixvector(instance.A_csr_values, instance.A_csr_col_idx, instance.A_csr_row_ptr, Ad, instance.n, AAd);
-				this->wolfe_linesearch(instance, deltaAlpha, gradient, gradient_temp1, 
-						AdeltaAlpha, Ad, AAdeltaAlpha, AAd, w, dualobj, a);
+				this->wolfe_linesearch(instance, deltaAlpha, gradient, gradient_temp1,
+				                       AdeltaAlpha, Ad, AAdeltaAlpha, AAd, w, dualobj, a);
 
 				cblas_dcopy(instance.n, &deltaAlpha[0], 1, &sk[0], 1);
 				cblas_dcopy(instance.n, &gradient[0], 1, &gradient_old[0], 1);
@@ -761,7 +780,7 @@ public:
 
 				t1 = 0.5 * (1.0 + sqrt(1.0 + t0 * t0 * 4.0));
 				double tmpFrac = (t0 - 1) / t1;
-				Lip = 1.0 /instance.lambda / 500.0 / instance.n;
+				Lip = 1.0 / instance.lambda / 500.0 / instance.n;
 				int iter = 0;
 				while (1) {
 					Lip = Lip * eta;
