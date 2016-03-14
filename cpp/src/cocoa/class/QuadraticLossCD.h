@@ -47,8 +47,10 @@ public:
 		std::vector<double> z(instance.n);
 		std::vector<double> y(instance.n);
 		std::vector<double> zA(instance.m);
-		std::vector<double> ZABuffer(instance.m);
+		std::vector<double> yA(instance.m);
 		std::vector<double> deltaZA(instance.m);
+		std::vector<double> deltaYA(instance.m);
+		std::vector<double> YABuffer(instance.m);
 		std::vector<double> deltaUA(instance.m);
 		std::vector<double> delta(instance.n);
 		double theta = 1.0 / world.size();
@@ -73,11 +75,11 @@ public:
 					// compute "delta alpha" = argmin
 					D dotProduct = 0;
 					for (L i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
-						dotProduct += (zA[instance.A_csr_col_idx[i]]
-						               + 1.0 * deltaZA[instance.A_csr_col_idx[i]])
+						dotProduct += (yA[instance.A_csr_col_idx[i]]
+						               + 1.0 * deltaYA[instance.A_csr_col_idx[i]])
 						              * instance.A_csr_values[i];
 					}
-					D alphaI = y[idx] + world.size() * theta * delta[idx];
+					D alphaI = z[idx] + delta[idx];
 					D deltaAl = 0; // FINISH
 					deltaAl = (1.0 * instance.b[idx] - alphaI - dotProduct * instance.b[idx]) * instance.Li[idx];
 					delta[idx] += deltaAl;
@@ -86,6 +88,8 @@ public:
 						                                     * instance.A_csr_values[i] * instance.b[idx];
 						deltaUA[instance.A_csr_col_idx[i]] += instance.oneOverLambdaN * deltaAl * c2
 						                                     * instance.A_csr_values[i] * instance.b[idx];					
+						deltaYA[instance.A_csr_col_idx[i]] += instance.oneOverLambdaN * deltaAl * c3
+						                                     * instance.A_csr_values[i] * instance.b[idx];					
 						}
 
 				}
@@ -93,9 +97,9 @@ public:
 					deltaW[i] = thetaOld * thetaOld * deltaUA[i] + deltaZA[i];
 				}
 				vall_reduce(world, deltaW, wBuffer);
-				vall_reduce(world, deltaZA, ZABuffer);
+				vall_reduce(world, deltaYA, YABuffer);
 				cblas_sum_of_vectors(w, wBuffer, gamma);
-				cblas_sum_of_vectors(zA, ZABuffer, gamma);
+				cblas_sum_of_vectors(yA, YABuffer, gamma);
 				cblas_sum_of_vectors(z, delta, c1);
 				cblas_sum_of_vectors(u, delta, c2);
 				cblas_sum_of_vectors(y, delta, c3);
@@ -126,7 +130,7 @@ public:
 		}
 
 	}
-	
+
 	virtual void subproblem_solver_SDCA_backup(ProblemData<L, D> &instance, std::vector<D> &deltaAlpha, std::vector<D> &w,
 	        std::vector<D> &wBuffer, std::vector<D> &deltaW, DistributedSettings & distributedSettings,
 	        mpi::communicator &world, D gamma, Context &ctx, std::ofstream &logFile) {
