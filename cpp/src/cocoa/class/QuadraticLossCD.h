@@ -62,10 +62,11 @@ public:
 			for (int jj = 0; jj < distributedSettings.iters_bulkIterations_count; jj++) {
 				cblas_set_to_zero(deltaZA);
 				cblas_set_to_zero(deltaUA);
+				cblas_set_to_zero(deltaW);
 				cblas_set_to_zero(delta);
-				double c1 = 1.0;
-				double c2 = -(1.0 - world.size() * theta) / theta / theta;
-				double c3 = world.size() * theta;
+				double c1 = gamma;
+				double c2 = - gamma * (1.0 - world.size() * theta) / theta / theta;
+				double c3 = gamma * world.size() * theta;
 
 				for (unsigned int it = 0; it < distributedSettings.iterationsPerThread; it++) {
 					L idx = rand() / (0.0 + RAND_MAX) * instance.n;
@@ -78,7 +79,7 @@ public:
 					}
 					D alphaI = y[idx] + world.size() * theta * delta[idx];
 					D deltaAl = 0; // FINISH
-					deltaAl = (instance.b[idx] - alphaI - dotProduct * instance.b[idx]) * instance.Li[idx];
+					deltaAl = (1.0 * instance.b[idx] - alphaI - dotProduct * instance.b[idx]) * instance.Li[idx];
 					delta[idx] += deltaAl;
 					for (L i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++){
 						deltaZA[instance.A_csr_col_idx[i]] += instance.oneOverLambdaN * deltaAl
@@ -88,7 +89,6 @@ public:
 						}
 
 				}
-				cblas_set_to_zero(deltaW);
 				for (unsigned int i = 0; i < instance.m; i++){
 					deltaW[i] = thetaOld * thetaOld * deltaUA[i] + deltaZA[i];
 				}
@@ -101,7 +101,7 @@ public:
 				cblas_sum_of_vectors(y, delta, c3);
 				thetaOld = theta;
 				thetasquare = theta * theta;
-				//theta = 0.5 * sqrt(thetasquare * thetasquare + 4 * thetasquare) - 0.5 * thetasquare;
+				theta = 0.5 * sqrt(thetasquare * thetasquare + 4 * thetasquare) - 0.5 * thetasquare;
 
 			}
 			for (unsigned int idx = 0; idx < instance.n; idx++)
