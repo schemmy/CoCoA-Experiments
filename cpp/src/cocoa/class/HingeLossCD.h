@@ -519,7 +519,7 @@ public:
 					instance.Li[idx] = 1.0 / (norm * norm * instance.penalty *
 					                          instance.oneOverLambdaN * theta * world.size());
 
-					D alphaI = z[idx] +  delta[idx];
+					D alphaI = z[idx] + delta[idx];
 					D deltaAl = 0;
 					D part = (1.0 - instance.b[idx] * dotProduct) * instance.Li[idx];
 					deltaAl = (part > 1 - alphaI) ? 1 - alphaI : (part < -alphaI ? -alphaI : part);
@@ -550,7 +550,6 @@ public:
 			}
 			for (unsigned int idx = 0; idx < instance.n; idx++){
 				instance.x[idx] = thetaOld * thetaOld * u[idx] + z[idx];
-				cout<<instance.x[idx]<<endl;
 			}
 			cblas_set_to_zero(w);
 			cblas_set_to_zero(deltaW);

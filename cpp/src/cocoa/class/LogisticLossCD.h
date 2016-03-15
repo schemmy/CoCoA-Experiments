@@ -64,7 +64,12 @@ public:
 					while (FirstDerivative > epsilon || FirstDerivative < -1.0 * epsilon)
 					{
 						D SecondDerivative = 1.0 * instance.penalty * norm * norm * instance.oneOverLambdaN
-						                     + 1.0 / (1.0 - (alphaI + deltaAl) / instance.b[idx]) + 1.0 / (alphaI + deltaAl) / instance.b[idx];
+						                     + 1.0 / (1.0 - (alphaI + deltaAl)) / instance.b[idx]
+						                     + 1.0 / (alphaI + deltaAl) / instance.b[idx];
+						// 2016.3.14: maybe the following is correct, but did not change the results, surprise
+						//D SecondDerivative = 1.0 * instance.penalty * norm * norm * instance.oneOverLambdaN
+						//                     + 1.0 / (instance.b[idx] - (alphaI + deltaAl)) / instance.b[idx]
+						//                     + 1.0 / (alphaI + deltaAl) / instance.b[idx];
 						deltaAl = 1.0 * deltaAl - FirstDerivative / SecondDerivative;
 
 						if (instance.b[idx] == 1.0)
@@ -279,7 +284,7 @@ public:
 		std::vector<double> delta(instance.n);
 		instance.Li.resize(instance.n);
 
-		double gma = 0.1;
+		double gma = 1.0;
 		double mu = gma / instance.oneOverLambdaN / (1.0 + gma / instance.oneOverLambdaN);
 		double rho = (1.0 - sqrt(mu) / instance.total_n) / (1.0 + sqrt(mu) / instance.total_n);
 		double rhoMul = rho;
@@ -311,27 +316,28 @@ public:
 						               * instance.A_csr_values[i];
 					}
 					dotProduct = rhoMul * dotProduct1 + dotProduct2;
-					D alphaI = -1.0 * rhoMul * u[idx] + v[idx];
+					D alphaI = -1.0 * rhoMul * u[idx] + v[idx] + delta[idx];
 
 					D norm = cblas_l2_norm(instance.A_csr_row_ptr[idx + 1] - instance.A_csr_row_ptr[idx],
 					                       &instance.A_csr_values[instance.A_csr_row_ptr[idx]], 1);
 					instance.Li[idx] = sqrt(mu) * instance.oneOverLambdaN * (norm * norm * instance.penalty +
-					                          gma / instance.oneOverLambdaN);
+					                   gma / instance.oneOverLambdaN);
 
 					D deltaAl = 0.0;
 					D epsilon = 1e-5;
+
 					if (alphaI == 0) {deltaAl = 0.1 * instance.b[idx];}
-	//sssssssssssssss
+
 					D FirstDerivative = dotProduct * instance.b[idx] + instance.Li[idx] * deltaAl + 2.0 * gma * rhoMul * u[idx] - gma * deltaAl
-					                     - log(1.0 - (-rhoMul * u[idx] + v[idx] + deltaAl) / instance.b[idx]) / instance.b[idx]
-					                    + log((-rhoMul * u[idx] + v[idx] + deltaAl) / instance.b[idx]) / instance.b[idx];
+					                    - log(1.0 - (alphaI + deltaAl) / instance.b[idx]) / instance.b[idx]
+					                    + log((alphaI + deltaAl) / instance.b[idx]) / instance.b[idx];
 
 					while (FirstDerivative > epsilon || FirstDerivative < -1.0 * epsilon)
 					{
-						D SecondDerivative = instance.Li[idx] - gma 
-						                     + 1.0 / (1.0 - (-rhoMul * u[idx] + v[idx] + deltaAl) / instance.b[idx]) 
-						                     + 1.0 / (-rhoMul * u[idx] + v[idx] + deltaAl)/ instance.b[idx];
-						deltaAl = 1.0 * deltaAl - FirstDerivative / SecondDerivative;
+						D SecondDerivative = instance.Li[idx] - gma
+						                     + 1.0 / (instance.b[idx] - (alphaI + deltaAl)) / instance.b[idx]
+						                     + 1.0 / (alphaI + deltaAl) / instance.b[idx];
+						deltaAl -= FirstDerivative / SecondDerivative;
 
 						if (instance.b[idx] == 1.0)
 							deltaAl = (deltaAl > 1 - alphaI) ? 1 - alphaI - 1e-15 : (deltaAl < -alphaI ? -alphaI + 1e-15 : deltaAl);
@@ -339,8 +345,8 @@ public:
 							deltaAl = (deltaAl > -alphaI) ? -alphaI - 1e-15 : (deltaAl < -1.0 - alphaI ? -1.0 - alphaI + 1e-15 : deltaAl);
 						//if ((alphaI+ deltaAl)/instance.b[idx] == -1) cout<<idx<<endl;
 						FirstDerivative = dotProduct * instance.b[idx] + instance.Li[idx] * deltaAl + 2.0 * gma * rhoMul * u[idx] - gma * deltaAl
-					                     - log(1.0 - (-rhoMul * u[idx] + v[idx] + deltaAl) / instance.b[idx]) / instance.b[idx]
-					                    + log((-rhoMul * u[idx] + v[idx] + deltaAl) / instance.b[idx]) / instance.b[idx];
+						                  - log(1.0 - (alphaI + deltaAl) / instance.b[idx]) / instance.b[idx]
+						                  + log((alphaI + deltaAl) / instance.b[idx]) / instance.b[idx];
 					}
 
 					delta[idx] += deltaAl;

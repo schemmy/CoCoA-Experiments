@@ -770,8 +770,8 @@ public:
 		std::vector<double> delta(instance.n);
 
 		double gma = 0.1;
-		double mu = gma / instance.oneOverLambdaN / (gma / instance.oneOverLambdaN);
-		//double mu = gma / instance.oneOverLambdaN / (0.01 + gma / instance.oneOverLambdaN);
+		//double mu = gma / instance.oneOverLambdaN / (gma / instance.oneOverLambdaN);
+		double mu = gma / instance.oneOverLambdaN / (0.01 + gma / instance.oneOverLambdaN);
 		double rho = (1.0 - sqrt(mu) / instance.total_n) / (1.0 + sqrt(mu) / instance.total_n);
 		double rhoMul = rho;
 
@@ -801,7 +801,7 @@ public:
 						               * instance.A_csr_values[i];
 					}
 					dotProduct = rhoMul * dotProduct1 + dotProduct2;
-					D alphaI = -1.0 * rhoMul * u[idx] + v[idx];
+					D alphaI = -1.0 * rhoMul * u[idx] + v[idx] + delta[idx];
 
 					D norm = cblas_l2_norm(instance.A_csr_row_ptr[idx + 1] - instance.A_csr_row_ptr[idx],
 					                       &instance.A_csr_values[instance.A_csr_row_ptr[idx]], 1);
@@ -836,7 +836,6 @@ public:
 				instance.x[idx] = rhoMul / rho * u[idx] + v[idx];
 			for (unsigned int i = 0; i < instance.m; i++)
 				w[i] = rhoMul / rho * p[i] + q[i];
-
 			double primalError;
 			double dualError;
 
