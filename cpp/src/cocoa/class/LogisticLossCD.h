@@ -397,6 +397,7 @@ public:
 	        std::vector<D> &w, std::vector<D> &wBuffer, std::vector<D> &deltaW, DistributedSettings & distributedSettings,
 	        mpi::communicator &world, D gamma, Context &ctx, std::ofstream &logFile) {
 
+		instance.Li.resize(instance.n);
 		double start = 0;
 		double finish = 0;
 		double elapsedTime = 0;
@@ -448,6 +449,32 @@ public:
 
 					D alphaI = z[idx] + delta[idx];
 					D deltaAl = 0;
+					D epsilon = 1e-5;
+
+					if (alphaI == 0) {deltaAl = 0.1 * instance.b[idx];}
+					D FirstDerivative = 1.0 * instance.penalty * deltaAl * instance.oneOverLambdaN * norm * norm
+					                    + dotProduct * instance.b[idx] - log(1.0 - (alphaI + deltaAl) / instance.b[idx]) / instance.b[idx]
+					                    + log((alphaI + deltaAl) / instance.b[idx]) / instance.b[idx];
+
+					while (FirstDerivative > epsilon || FirstDerivative < -1.0 * epsilon)
+					{
+						D SecondDerivative = 1.0 * instance.penalty * norm * norm * instance.oneOverLambdaN
+						                     + 1.0 / (1.0 - (alphaI + deltaAl)) / instance.b[idx]
+						                     + 1.0 / (alphaI + deltaAl) / instance.b[idx];
+						// 2016.3.14: maybe the following is correct, but did not change the results, surprise
+						//D SecondDerivative = 1.0 * instance.penalty * norm * norm * instance.oneOverLambdaN
+						//                     + 1.0 / (instance.b[idx] - (alphaI + deltaAl)) / instance.b[idx]
+						//                     + 1.0 / (alphaI + deltaAl) / instance.b[idx];
+						deltaAl = 1.0 * deltaAl - FirstDerivative / SecondDerivative;
+
+						if (instance.b[idx] == 1.0)
+							deltaAl = (deltaAl > 1 - alphaI) ? 1 - alphaI - 1e-15 : (deltaAl < -alphaI ? -alphaI + 1e-15 : deltaAl);
+						else if (instance.b[idx] == -1.0)
+							deltaAl = (deltaAl > -alphaI) ? -alphaI - 1e-15 : (deltaAl < -1.0 - alphaI ? -1.0 - alphaI + 1e-15 : deltaAl);
+						FirstDerivative = 1.0 * instance.penalty * deltaAl * instance.oneOverLambdaN * norm * norm
+						                  + dotProduct * instance.b[idx] - log(1.0 - (alphaI + deltaAl) / instance.b[idx]) / instance.b[idx]
+						                  + log((alphaI + deltaAl) / instance.b[idx]) / instance.b[idx];
+					}
 					delta[idx] += deltaAl;
 					for (L i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
 						deltaZA[instance.A_csr_col_idx[i]] += instance.oneOverLambdaN * deltaAl * c1
