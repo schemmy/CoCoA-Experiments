@@ -922,11 +922,6 @@ public:
 					}
 
 				}
-				// for (unsigned int i = 0; i < instance.m; i++) {
-				// 	deltaW[i] = thetaOld * thetaOld * deltaUA[i] + deltaZA[i];
-				// }
-				// vall_reduce(world, deltaW, wBuffer);
-				//cblas_sum_of_vectors(w, wBuffer, gamma);
 				vall_reduce(world, deltaZA, ZABuffer);
 				vall_reduce(world, deltaUA, UABuffer);
 				cblas_sum_of_vectors(zA, ZABuffer, gamma);
