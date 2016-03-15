@@ -148,7 +148,7 @@ int main(int argc, char *argv[]) {
 		logFile.open(ss.str().c_str());
 	}
 
-	distributedSettings.iters_bulkIterations_count = 5;
+	distributedSettings.iters_bulkIterations_count = 1;
 
 	// distributedSettings.iters_communicate_count =
 	// 		distributedSettings.iters_communicate_count
