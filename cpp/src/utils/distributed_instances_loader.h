@@ -139,8 +139,8 @@ int loadDistributedSparseSVMRowData(string inputFile, int file, int totalFiles,
 						}
 
 						processedSamples++;
-						part.b[processedSamples] = ddval; // used for a1a data
-						//part.b[processedSamples] = (-1.5 + ddval) * 2.0; // used for covtype data
+						//part.b[processedSamples] = ddval; // used for a1a data
+						part.b[processedSamples] = (-1.5 + ddval) * 2.0; // used for covtype data
 						part.A_csr_row_ptr[processedSamples] = nnzPossition;
 
 						pos++;
