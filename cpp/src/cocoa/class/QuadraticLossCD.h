@@ -753,7 +753,7 @@ public:
 	}
 
 // Qihang paper
-	virtual void Acce_subproblem_solver_SDCAbackup(ProblemData<L, D> &instance, std::vector<D> &deltaAlpha, std::vector<D> &w,
+	virtual void Acce_subproblem_solver_SDCA(ProblemData<L, D> &instance, std::vector<D> &deltaAlpha, std::vector<D> &w,
 	        std::vector<D> &wBuffer, std::vector<D> &deltaW, DistributedSettings & distributedSettings,
 	        mpi::communicator &world, D gamma, Context &ctx, std::ofstream &logFile) {
 
@@ -772,8 +772,8 @@ public:
 
 		double gma = 0.1;
 		//double mu = gma / instance.oneOverLambdaN / (gma / instance.oneOverLambdaN);
-		double mu = gma / instance.oneOverLambdaN / (0.01 + gma / instance.oneOverLambdaN);
-		double rho = (1.0 - sqrt(mu) / instance.total_n) / (1.0 + sqrt(mu) / instance.total_n);
+		double mu = gma / instance.oneOverLambdaN / (1.0 + gma / instance.oneOverLambdaN);
+		double rho = (1.0 - sqrt(mu) / world.size()) / (1.0 + sqrt(mu) / world.size());
 		double rhoMul = rho;
 
 		for (unsigned int t = 0; t < distributedSettings.iters_communicate_count; t++) {
@@ -856,7 +856,7 @@ public:
 	}
 
 //Peter APProx
-	virtual void Acce_subproblem_solver_SDCA(ProblemData<L, D> &instance, std::vector<D> &deltaAlpha,
+	virtual void Acce_subproblem_solver_SDCAss(ProblemData<L, D> &instance, std::vector<D> &deltaAlpha,
 	        std::vector<D> &w, std::vector<D> &wBuffer, std::vector<D> &deltaW, DistributedSettings & distributedSettings,
 	        mpi::communicator &world, D gamma, Context &ctx, std::ofstream &logFile) {
 
@@ -960,6 +960,7 @@ public:
 		}
 
 	}
+
 	// virtual void subproblem_solver_SDCA(ProblemData<L, D> &instance, std::vector<D> &deltaAlpha, std::vector<D> &w,
 	//                                     std::vector<D> &wBuffer, std::vector<D> &deltaW, DistributedSettings & distributedSettings,
 	//                                     mpi::communicator &world, D gamma, Context &ctx, std::ofstream &logFile) {
