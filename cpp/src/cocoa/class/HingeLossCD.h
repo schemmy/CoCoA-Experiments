@@ -119,7 +119,7 @@ public:
 				     << endl;
 
 				logFile << t << "," << elapsedTime << "," << primalError << ","
-				        << dualError << "," << primalError + dualError 
+				        << dualError << "," << primalError + dualError << ","
 				        << 1.0 * totalTrainError / instance.total_n << endl;
 
 			}
