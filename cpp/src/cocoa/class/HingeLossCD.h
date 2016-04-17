@@ -487,9 +487,12 @@ public:
 		std::vector<double> ZABuffer(instance.m);
 		std::vector<double> UABuffer(instance.m);
 		std::vector<double> delta(instance.n);
-		double theta = 1.0 / world.size();
+		double theta = 1.0;
 		double thetaOld = theta;
 		double thetasquare;
+		std::vector<double> trainLabel(instance.n);
+		unsigned int trainError;
+		unsigned int totalTrainError;
 
 		for (unsigned int t = 0; t < distributedSettings.iters_communicate_count; t++) {
 
@@ -500,8 +503,8 @@ public:
 				cblas_set_to_zero(deltaUA);
 				cblas_set_to_zero(delta);
 				double c1 = 1.0;
-				double c2 = - (1.0 - world.size() * theta) / theta / theta;
-				double c3 = world.size() * theta;
+				double c2 = - (1.0 - theta) / theta / theta;
+				double c3 = theta;
 
 				for (unsigned int it = 0; it < distributedSettings.iterationsPerThread; it++) {
 
@@ -561,22 +564,40 @@ public:
 			}
 			for (unsigned int i = 0; i < instance.m; i++) {
 				w[i] = thetaOld * thetaOld * uA[i] + zA[i];
-			}			
-		
+			}
+
 			double primalError;
 			double dualError;
 
 			this->computeObjectiveValue(instance, world, w, dualError, primalError);
 
+			trainError = 0;
+			cblas_set_to_zero(trainLabel);
+			for (unsigned int idx = 0; idx < instance.n; idx++) {
+				for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
+					trainLabel[idx] += w[instance.A_csr_col_idx[i]] * instance.A_csr_values[i];
+				}
+				if (trainLabel[idx] * instance.b[idx] <= 0 )
+					trainError += 1;
+			}
+			vall_reduce(world, &trainError, &totalTrainError, 1);
+			//cout << 1.0 * totalTrainError / instance.total_n << endl;
+
 			if (ctx.settings.verbose) {
 				cout << "Iteration " << t << " elapsed time " << elapsedTime
 				     << "  error " << primalError << "    " << dualError
-				     << "    " << primalError + dualError << endl;
+				     << "    " << primalError + dualError
+				     << "    " << 1.0 * totalTrainError / instance.total_n
+				     << endl;
 
 				logFile << t << "," << elapsedTime << "," << primalError << ","
-				        << dualError << "," << primalError + dualError << endl;
+				        << dualError << "," << primalError + dualError 
+				        << 1.0 * totalTrainError / instance.total_n << endl;
 
 			}
+
+
+
 		}
 
 	}

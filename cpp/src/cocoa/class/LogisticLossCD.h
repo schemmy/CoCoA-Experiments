@@ -265,7 +265,7 @@ public:
 	}
 
 //Qihang paper
-	virtual void Acce_subproblem_solver_SDCAsss(ProblemData<L, D> &instance, std::vector<D> &deltaAlpha,
+	virtual void Acce_subproblem_solver_SDCA(ProblemData<L, D> &instance, std::vector<D> &deltaAlpha,
 	        std::vector<D> &w, std::vector<D> &wBuffer, std::vector<D> &deltaW, DistributedSettings & distributedSettings,
 	        mpi::communicator &world, D gamma, Context &ctx, std::ofstream &logFile) {
 
@@ -393,7 +393,7 @@ public:
 
 	}
 //Peter APProx
-	virtual void Acce_subproblem_solver_SDCA(ProblemData<L, D> &instance, std::vector<D> &deltaAlpha,
+	virtual void Acce_subproblem_solver_SDCAss(ProblemData<L, D> &instance, std::vector<D> &deltaAlpha,
 	        std::vector<D> &w, std::vector<D> &wBuffer, std::vector<D> &deltaW, DistributedSettings & distributedSettings,
 	        mpi::communicator &world, D gamma, Context &ctx, std::ofstream &logFile) {
 

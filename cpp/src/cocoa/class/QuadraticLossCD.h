@@ -753,7 +753,7 @@ public:
 	}
 
 // Qihang paper, better for rcv1. For a1a, make mu smaller to get faster convergence
-	virtual void Acce_subproblem_solver_SDCA(ProblemData<L, D> &instance, std::vector<D> &deltaAlpha, std::vector<D> &w,
+	virtual void Acce_subproblem_solver_SDCAss(ProblemData<L, D> &instance, std::vector<D> &deltaAlpha, std::vector<D> &w,
 	        std::vector<D> &wBuffer, std::vector<D> &deltaW, DistributedSettings & distributedSettings,
 	        mpi::communicator &world, D gamma, Context &ctx, std::ofstream &logFile) {
 
@@ -772,7 +772,7 @@ public:
 
 		double gma = 0.1;
 		//double mu = gma / instance.oneOverLambdaN / (gma / instance.oneOverLambdaN);
-		double mu = gma / instance.oneOverLambdaN / (1.0 + gma / instance.oneOverLambdaN);
+		double mu = gma / instance.oneOverLambdaN / (5.0 + gma / instance.oneOverLambdaN);
 		double rho = (1.0 - sqrt(mu) / world.size()) / (1.0 + sqrt(mu) / world.size());
 		double rhoMul = rho;
 
@@ -856,7 +856,7 @@ public:
 	}
 
 //Peter APProx, better for a1a
-	virtual void Acce_subproblem_solver_SDCAss(ProblemData<L, D> &instance, std::vector<D> &deltaAlpha,
+	virtual void Acce_subproblem_solver_SDCA(ProblemData<L, D> &instance, std::vector<D> &deltaAlpha,
 	        std::vector<D> &w, std::vector<D> &wBuffer, std::vector<D> &deltaW, DistributedSettings & distributedSettings,
 	        mpi::communicator &world, D gamma, Context &ctx, std::ofstream &logFile) {
 

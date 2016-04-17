@@ -34,7 +34,7 @@ int main(int argc, char *argv[]) {
 	DistributedSettings distributedSettings;
 	Context ctx(distributedSettings);
 	consoleHelper::parseDistributedOptions(ctx, distributedSettings, argc,
-			argv);
+	                                       argv);
 
 	ctx.settings.verbose = true;
 	if (world.rank() != 0) {
@@ -43,12 +43,12 @@ int main(int argc, char *argv[]) {
 	ProblemData<unsigned int, double> instance;
 	instance.theta = ctx.tmp;
 	cout << "XXXXXXXx   " << instance.theta << endl;
-	cout << world.rank() << " going to load data" << endl; 
+	cout << world.rank() << " going to load data" << endl;
 	//ctx.matrixAFile = "/Users/Schemmy/Desktop/ac-dc/cpp/data/a1a.4/a1a";
 	//cout<< ctx.matrixAFile<<endl;
 
 	loadDistributedSparseSVMRowData(ctx.matrixAFile, world.rank(), world.size(),
-			instance, false);
+	                                instance, false);
 
 	unsigned int finalM;
 
@@ -118,7 +118,7 @@ int main(int argc, char *argv[]) {
 		lf = new QuadraticLossCD<unsigned int, double>();
 		break;
 
-	
+
 	default:
 		break;
 	}
@@ -133,16 +133,16 @@ int main(int argc, char *argv[]) {
 	// 		<< distributedSettings.iters_communicate_count << "_"
 	// 		<< distributedSettings.iterationsPerThread << "_"
 	// 		<< instance.experimentName << "_" << distributedSettings.APPROX
-	// 		<< "_" << instance.theta << "_.log";	
-	
-	ss << ctx.matrixAFile << "_" 
-			<< distributedSettings.lossFunction << "_"
-			<< localsolver << "_"
-			<< distributedSettings.iters_communicate_count << "_"
-			<< distributedSettings.iterationsPerThread << "_"
-			<< instance.lambda << "_"
-			<< distributedSettings.APPROX
-			<< ".log";
+	// 		<< "_" << instance.theta << "_.log";
+
+	ss << ctx.matrixAFile << "_"
+	   << distributedSettings.lossFunction << "_"
+	   << localsolver << "_"
+	   << distributedSettings.iters_communicate_count << "_"
+	   << distributedSettings.iterationsPerThread << "_"
+	   << instance.lambda << "_"
+	   << distributedSettings.APPROX
+	   << ".log";
 	std::ofstream logFile;
 	if (ctx.settings.verbose) {
 		logFile.open(ss.str().c_str());
@@ -164,49 +164,61 @@ int main(int argc, char *argv[]) {
 	case 0:
 
 		lf->subproblem_solver_SDCA(instance, deltaAlpha, w, wBuffer, deltaW,
-									distributedSettings, world, gamma, ctx, logFile);
+		                           distributedSettings, world, gamma, ctx, logFile);
 		break;
 	case 1:
 
 		lf->subproblem_solver_accelerated_SDCA(instance, deltaAlpha, w, wBuffer, deltaW,
-									distributedSettings, world, gamma, ctx, logFile);
+		                                       distributedSettings, world, gamma, ctx, logFile);
 		break;
 	case 2:
 
 		lf->subproblem_solver_steepestdescent(instance, deltaAlpha, w, wBuffer, deltaW,
-									distributedSettings, world, gamma, ctx, logFile);
+		                                      distributedSettings, world, gamma, ctx, logFile);
 		break;
 
 	case 3:
 		lf->subproblem_solver_LBFGS(instance, deltaAlpha, w, wBuffer, deltaW,
-									distributedSettings, world, gamma, ctx, logFile);
+		                            distributedSettings, world, gamma, ctx, logFile);
 		break;
 
 	case 4:
 		lf->subproblem_solver_CG(instance, deltaAlpha, w, wBuffer, deltaW,
-									distributedSettings, world, gamma, ctx, logFile);
+		                         distributedSettings, world, gamma, ctx, logFile);
 		break;
 
 	case 5:
 		lf->subproblem_solver_BB(instance, deltaAlpha, w, wBuffer, deltaW,
-									distributedSettings, world, gamma, ctx, logFile);
+		                         distributedSettings, world, gamma, ctx, logFile);
 		break;
 	case 6:
 		lf->subproblem_solver_FISTA(instance, deltaAlpha, w, wBuffer, deltaW,
-									distributedSettings, world, gamma, ctx, logFile);
+		                            distributedSettings, world, gamma, ctx, logFile);
 		break;
-    case 7:
-         lf->subproblem_solver_SDCA_without_duality(instance, deltaAlpha, w, wBuffer, deltaW,
-                  distributedSettings, world, gamma, ctx, logFile);
-    case 8:
-         lf->Acce_subproblem_solver_SDCA(instance, deltaAlpha, w, wBuffer, deltaW,
-                  distributedSettings, world, gamma, ctx, logFile);
-    	break;
-	
+	case 7:
+		lf->subproblem_solver_SDCA_without_duality(instance, deltaAlpha, w, wBuffer, deltaW,
+		        distributedSettings, world, gamma, ctx, logFile);
+	case 8:
+		lf->Acce_subproblem_solver_SDCA(instance, deltaAlpha, w, wBuffer, deltaW,
+		                                distributedSettings, world, gamma, ctx, logFile);
+		break;
+
 	default:
 		break;
 	}
 
+	// std::vector<double> trainLabel(instance.n);
+	// std::vector<unsigned int> trainError(2);
+	// std::vector<unsigned int> totalTrainError(2);
+	// for (unsigned int idx = 0; idx < instance.n; idx++) {
+	// 	for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
+	// 		trainLabel[idx] += w[instance.A_csr_col_idx[i]] * instance.A_csr_values[i];
+	// 	}
+	// 	if (trainLabel[idx] * instance.b[idx] <= 0 )
+	// 		trainError[0] += 1;
+	// }
+	// vall_reduce(world, trainError, totalTrainError);
+	// cout << 1.0*totalTrainError[0] /instance.total_n << endl;
 
 	//-------------------------------------------------------
 

@@ -3,7 +3,7 @@ from math import ceil, floor
 
 def main():
     exp = [4]
-    name = 'covertype'
+    name = 'news'
     for ee in range(1):
         nPart = exp[ee]
         nnlines = 0
