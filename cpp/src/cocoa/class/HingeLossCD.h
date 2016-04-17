@@ -98,29 +98,30 @@ public:
 			elapsedTime += finish - start;
 
 			this->computeObjectiveValue(instance, world, w, dualError, primalError);
-			
-			trainError = 0;
-			cblas_set_to_zero(trainLabel);
-			for (unsigned int idx = 0; idx < instance.n; idx++) {
-				for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
-					trainLabel[idx] += w[instance.A_csr_col_idx[i]] * instance.A_csr_values[i];
-				}
-				if (trainLabel[idx] * instance.b[idx] <= 0 )
-					trainError += 1;
-			}
-			vall_reduce(world, &trainError, &totalTrainError, 1);
+
+			// trainError = 0;
+			// cblas_set_to_zero(trainLabel);
+			// for (unsigned int idx = 0; idx < instance.n; idx++) {
+			// 	for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
+			// 		trainLabel[idx] += w[instance.A_csr_col_idx[i]] * instance.A_csr_values[i];
+			// 	}
+			// 	if (trainLabel[idx] * instance.b[idx] <= 0 )
+			// 		trainError += 1;
+			// }
+			// vall_reduce(world, &trainError, &totalTrainError, 1);
 			//cout << 1.0 * totalTrainError / instance.total_n << endl;
 
 			if (ctx.settings.verbose) {
 				cout << "Iteration " << t << " elapsed time " << elapsedTime
 				     << "  error " << primalError << "    " << dualError
 				     << "    " << primalError + dualError
-				     << "    " << 1.0 * totalTrainError / instance.total_n
+				     //<< "    " << 1.0 * totalTrainError / instance.total_n
 				     << endl;
 
 				logFile << t << "," << elapsedTime << "," << primalError << ","
-				        << dualError << "," << primalError + dualError << ","
-				        << 1.0 * totalTrainError / instance.total_n << endl;
+				        << dualError << "," << primalError + dualError 
+				        //<< "," << 1.0 * totalTrainError / instance.total_n 
+				        << endl;
 
 			}
 
@@ -591,28 +592,29 @@ public:
 
 			this->computeObjectiveValue(instance, world, w, dualError, primalError);
 
-			trainError = 0;
-			cblas_set_to_zero(trainLabel);
-			for (unsigned int idx = 0; idx < instance.n; idx++) {
-				for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
-					trainLabel[idx] += w[instance.A_csr_col_idx[i]] * instance.A_csr_values[i];
-				}
-				if (trainLabel[idx] * instance.b[idx] <= 0 )
-					trainError += 1;
-			}
-			vall_reduce(world, &trainError, &totalTrainError, 1);
+			// trainError = 0;
+			// cblas_set_to_zero(trainLabel);
+			// for (unsigned int idx = 0; idx < instance.n; idx++) {
+			// 	for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
+			// 		trainLabel[idx] += w[instance.A_csr_col_idx[i]] * instance.A_csr_values[i];
+			// 	}
+			// 	if (trainLabel[idx] * instance.b[idx] <= 0 )
+			// 		trainError += 1;
+			// }
+			// vall_reduce(world, &trainError, &totalTrainError, 1);
 			//cout << 1.0 * totalTrainError / instance.total_n << endl;
 
 			if (ctx.settings.verbose) {
 				cout << "Iteration " << t << " elapsed time " << elapsedTime
 				     << "  error " << primalError << "    " << dualError
 				     << "    " << primalError + dualError
-				     << "    " << 1.0 * totalTrainError / instance.total_n
+				     //<< "    " << 1.0 * totalTrainError / instance.total_n
 				     << endl;
 
 				logFile << t << "," << elapsedTime << "," << primalError << ","
-				        << dualError << "," << primalError + dualError  << ","
-				        << 1.0 * totalTrainError / instance.total_n << endl;
+				        << dualError << "," << primalError + dualError 
+				        // << ","<< 1.0 * totalTrainError / instance.total_n
+				        << endl;
 
 			}
 
