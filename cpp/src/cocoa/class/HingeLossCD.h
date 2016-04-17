@@ -124,15 +124,6 @@ public:
 
 			}
 
-			if (ctx.settings.verbose) {
-				cout << "Iteration " << t << " elapsed time " << elapsedTime
-				     << "  error " << primalError << "    " << dualError
-				     << "    " << primalError + dualError << endl;
-
-				logFile << t << "," << elapsedTime << "," << primalError << ","
-				        << dualError << "," << primalError + dualError << endl;
-
-			}
 		}
 
 	}
