@@ -48,6 +48,10 @@ public:
 		double finish = 0;
 		double elapsedTime = 0;
 
+		std::vector<double> trainLabel(instance.n);
+		unsigned int trainError;
+		unsigned int totalTrainError;
+
 		for (unsigned int t = 0; t < distributedSettings.iters_communicate_count; t++) {
 
 			start = gettime_();
@@ -94,6 +98,31 @@ public:
 			elapsedTime += finish - start;
 
 			this->computeObjectiveValue(instance, world, w, dualError, primalError);
+			
+			trainError = 0;
+			cblas_set_to_zero(trainLabel);
+			for (unsigned int idx = 0; idx < instance.n; idx++) {
+				for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
+					trainLabel[idx] += w[instance.A_csr_col_idx[i]] * instance.A_csr_values[i];
+				}
+				if (trainLabel[idx] * instance.b[idx] <= 0 )
+					trainError += 1;
+			}
+			vall_reduce(world, &trainError, &totalTrainError, 1);
+			//cout << 1.0 * totalTrainError / instance.total_n << endl;
+
+			if (ctx.settings.verbose) {
+				cout << "Iteration " << t << " elapsed time " << elapsedTime
+				     << "  error " << primalError << "    " << dualError
+				     << "    " << primalError + dualError
+				     << "    " << 1.0 * totalTrainError / instance.total_n
+				     << endl;
+
+				logFile << t << "," << elapsedTime << "," << primalError << ","
+				        << dualError << "," << primalError + dualError 
+				        << 1.0 * totalTrainError / instance.total_n << endl;
+
+			}
 
 			if (ctx.settings.verbose) {
 				cout << "Iteration " << t << " elapsed time " << elapsedTime
