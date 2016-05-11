@@ -49,7 +49,6 @@ int main(int argc, char *argv[]) {
 
 	loadDistributedSparseSVMRowData(ctx.matrixAFile, world.rank(), world.size(),
 	                                instance, false);
-
 	unsigned int finalM;
 
 	vall_reduce_maximum(world, &instance.m, &finalM, 1);
