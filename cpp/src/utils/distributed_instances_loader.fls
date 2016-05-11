@@ -1,8 +1,0 @@
-PWD /Users/Schemmy/Desktop/CoCoA-Experiments/cpp/src/utils
-INPUT /usr/local/texlive/2014/texmf.cnf
-INPUT /usr/local/texlive/2014/texmf-dist/web2c/texmf.cnf
-INPUT /usr/local/texlive/2014/texmf-var/web2c/pdftex/pdflatex.fmt
-INPUT /Users/Schemmy/Desktop/CoCoA-Experiments/cpp/src/utils/distributed_instances_loader.h
-OUTPUT /Users/Schemmy/Desktop/CoCoA-Experiments/cpp/src/utils/distributed_instances_loader.log
-OUTPUT /Users/Schemmy/Desktop/CoCoA-Experiments/cpp/src/utils/distributed_instances_loader.pdf
-INPUT /usr/local/texlive/2014/texmf-var/fonts/map/pdftex/updmap/pdftex.map

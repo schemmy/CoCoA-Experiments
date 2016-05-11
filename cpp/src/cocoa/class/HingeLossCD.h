@@ -524,7 +524,7 @@ public:
 				cblas_set_to_zero(deltaUA);
 				cblas_set_to_zero(delta);
 				double c1 = 1.0;
-				double c2 = - (1.0 - theta) / theta / theta;
+				double c2 = -(1.0 - theta) / theta / theta;
 				double c3 = theta;
 
 				for (unsigned int it = 0; it < distributedSettings.iterationsPerThread; it++) {
@@ -574,7 +574,7 @@ public:
 				cblas_sum_of_vectors(u, delta, gamma * c2);
 				thetaOld = theta;
 				thetasquare = theta * theta;
-				theta = 0.5 * sqrt(thetasquare * thetasquare + 4 * thetasquare) - 0.5 * thetasquare;
+				theta = 0.5 * sqrt(gamma*gamma*thetasquare*thetasquare+4*thetasquare) - 0.5*gamma*thetasquare;
 			}
 
 			finish = gettime_();

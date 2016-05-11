@@ -1,6 +1,0 @@
-PWD /Users/Schemmy/Desktop/CoCoA-Experiments/cpp/src/cocoa
-INPUT /usr/local/texlive/2014/texmf.cnf
-INPUT /usr/local/texlive/2014/texmf-dist/web2c/texmf.cnf
-INPUT /usr/local/texlive/2014/texmf-var/web2c/pdftex/pdflatex.fmt
-INPUT /Users/Schemmy/Desktop/CoCoA-Experiments/cpp/src/cocoa/cocoa.cpp
-OUTPUT /Users/Schemmy/Desktop/CoCoA-Experiments/cpp/src/cocoa/cocoa.log
