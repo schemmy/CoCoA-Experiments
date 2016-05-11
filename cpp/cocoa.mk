@@ -1,11 +1,11 @@
 
 
-DISTRIBUTED_INCLUDE= -I /usr/local/include/ -I /usr/local/Cellar/boost/1.57.0/include/ -I /usr/local/Cellar/gcc/5.2.0/lib/gcc/5/gcc/x86_64-apple-darwin14.5.0/5.2.0/include/
-DISTRIBUTED_LIB_PATH=  -L /usr/local/lib/ -L /usr/local/Cellar/gcc/5.2.0/lib/gcc/5/ -L /usr/local/Cellar/boost/1.57.0/lib/
+DISTRIBUTED_INCLUDE= -I /usr/local/include/ -I /usr/local/Cellar/boost/1.57.0/include/ -I /usr/local/Cellar/gcc/5.2.0/lib/gcc/5/gcc/x86_64-apple-darwin14.5.0/5.2.0/include/ -I /usr/local/boost-1.56.0/include/
+DISTRIBUTED_LIB_PATH=  -L /usr/local/lib/ -L /usr/local/Cellar/gcc/5.2.0/lib/gcc/5/ -L /usr/local/Cellar/boost/1.57.0/lib/ -L /usr/local/boost-1.56.0/lib/
 
 DISTRIBUTED_COMPILER_OPTIONS= -fpermissive -DHAVE_CONFIG_H -DAUTOTOOLS_BUILD   -DMPICH_IGNORE_CXX_SEEK 
 #DISTRIBUTED_LINK= -lboost_mpi -lzoltan -lboost_timer -lboost_serialization -lboost_thread -lgsl -lgslcblas -lm -stdlib=libstdc++ -lstdc++
-DISTRIBUTED_LINK= -lgslcblas  -lboost_system-mt -lboost_timer-mt -lboost_chrono-mt -lboost_mpi-mt -lboost_serialization-mt -fopenmp  -lgsl -lboost_thread-mt  
+DISTRIBUTED_LINK= -lgslcblas  -lboost_system -lboost_timer -lboost_chrono -lboost_mpi -lboost_serialization -fopenmp  -lgsl -lboost_thread  
 
 mpiP_root=/home/mcx/R/mpiP_sb/
 
@@ -56,10 +56,10 @@ cocoa:
 	#mpirun -np 4 $(BUILD_FOLDER)Cocoa -A data/a1a.4/a1a -l 0.001 -C 100 -I 100 -f 3 -a 1 -p 0.001 -M 8
 	#mpirun -np 4 $(BUILD_FOLDER)Cocoa -A data/rcvt.4/rcvt -l 0.0001 -C 100 -I 1000 -f 3 -a 1 -p 0.001 -M 8
 
-	#mpirun -np 4 $(BUILD_FOLDER)Cocoa -A data/a1a.4/a1a -l 0.001 -C 100 -I 1000 -f 1 -a 1 -p 0.001 -M 8
+	mpirun -np 4 $(BUILD_FOLDER)Cocoa -A data/a1a.4/a1a -l 0.001 -C 100 -I 1000 -f 1 -a 1 -p 0.001 -M 8
 	#mpirun -np 4 $(BUILD_FOLDER)Cocoa -A data/rcvt.4/rcvt -l 0.0001 -C 1000 -I 500 -f 1 -a 1 -p 0.001 -M 8
-	#mpirun -np 4 $(BUILD_FOLDER)Cocoa -A data/news.4/news -l 0.000001 -C 1000 -I 100 -f 1 -a 1 -p 0.001 -M 0
-	#mpirun -np 4 $(BUILD_FOLDER)Cocoa -A data/news.4/news -l 0.000001 -C 1000 -I 100 -f 1 -a 0 -p 0.001 -M 0
+	mpirun -np 4 $(BUILD_FOLDER)Cocoa -A data/news.4/news -l 0.000001 -C 1000 -I 100 -f 1 -a 1 -p 0.001 -M 0
+	mpirun -np 4 $(BUILD_FOLDER)Cocoa -A data/news.4/news -l 0.000001 -C 1000 -I 100 -f 1 -a 0 -p 0.001 -M 0
 	
 # 1.4 Good for full H as preconditioning, see "nnSamples" in distributed_PCG function of discoHelper.h.
 dis_goodEXP:
