@@ -83,7 +83,7 @@ public:
 
 		int mode = 1;
 		objective[0] = 1.0;
-		std::vector<double> trueH(instance.m * instance.m);
+		//std::vector<double> trueH(instance.m * instance.m);
 
 		for (int iter = 1; iter <= maxIter; iter++) {
 

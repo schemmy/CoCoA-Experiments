@@ -40,9 +40,10 @@ dd:
 	#mpirun -np 4 $(BUILD_FOLDER)DISCO -A data/rcvt.4/rcvt -l 0.001 -a 1 -f 1 -p 0.001 -M 4 -C 2 -I 1
 	#mpirun -np 4 $(BUILD_FOLDER)DISCO -A data/a1a.4/a1a -l 0.001  -a 1 -f 2 -p 0.001 -M 3 -C 5 -I 1
 
-	mpirun -np 4 $(BUILD_FOLDER)DISCO -A data/rcv.4/rcv -l 0.00001  -a 1 -f 2 -p 0.001 -M 5 -C 100 -I 10000
+	#mpirun -np 4 $(BUILD_FOLDER)DISCO -A data/rcv.4/rcv -l 0.00001  -a 1 -f 2 -p 0.001 -M 5 -C 100 -I 10000
 	#mpirun -np 1 $(BUILD_FOLDER)DISCO -A data/w1a.4/w1a -l 0.001  -a 1 -f 1 -p 0.001 -M 6 -C 1000 -I 1000
 
+	mpirun -np 4 $(BUILD_FOLDER)DISCO -A data/rcvt.4/rcvt -l 0.0001  -a 1 -f 2 -p 0.001 -M 3 -C 100 -I 1
 
 cocoa:
 	$(MPICPP) -O3 $(DISTRIBUTED_COMPILER_OPTIONS) $(DISTRIBUTED_INCLUDE) -DMATLAB  \
@@ -54,10 +55,11 @@ cocoa:
 	#mpirun -np 4 $(BUILD_FOLDER)Cocoa -A data/a1a.4/a1a -l 0.001 -C 200 -I 1000 -f 1 -a 1 -p 0.001 -M 8
 	
 	#mpirun -np 4 $(BUILD_FOLDER)Cocoa -A data/a1a.4/a1a -l 0.001 -C 100 -I 100 -f 3 -a 1 -p 0.001 -M 8
-	#mpirun -np 4 $(BUILD_FOLDER)Cocoa -A data/rcvt.4/rcvt -l 0.0001 -C 100 -I 1000 -f 3 -a 1 -p 0.001 -M 8
+	#mpirun -np 4 $(BUILD_FOLDER)Cocoa -A data/rcvt.4/rcvt -l 0.0001 -C 100 -I 1000 -f 3 -a 0 -p 0.001 -M 0
+	mpirun -np 4 $(BUILD_FOLDER)Cocoa -A data/rcvt.4/rcvt -l 0.0001 -C 100 -I 1000 -f 3 -a 0 -p 0.001 -M 8
 
 	#mpirun -np 4 $(BUILD_FOLDER)Cocoa -A data/a1a.4/a1a -l 0.001 -C 100 -I 1000 -f 1 -a 1 -p 0.001 -M 8
-	mpirun -np 4 $(BUILD_FOLDER)Cocoa -A data/rcvt.4/rcvt -l 0.0001 -C 1000 -I 500 -f 1 -a 1 -p 0.001 -M 8
+	#mpirun -np 4 $(BUILD_FOLDER)Cocoa -A data/rcvt.4/rcvt -l 0.0001 -C 1000 -I 500 -f 1 -a 1 -p 0.001 -M 8
 	#mpirun -np 4 $(BUILD_FOLDER)Cocoa -A data/news.4/news -l 0.000001 -C 1000 -I 100 -f 1 -a 1 -p 0.001 -M 0
 	#mpirun -np 4 $(BUILD_FOLDER)Cocoa -A data/news.4/news -l 0.000001 -C 1000 -I 500 -f 1 -a 0 -p 0.001 -M 0
 	#mpirun -np 4 $(BUILD_FOLDER)Cocoa -A data/rcvt.4/rcvt -l 0.00001 -C 100 -I 1000 -f 0 -a 0 -p 0.001 -M 0

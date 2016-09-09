@@ -78,7 +78,7 @@ public:
 	                mpi::communicator &world, D gamma, std::ofstream &logFile) {
 
 		int mode = 1;
-		int inIter = distributedSettings.iters_bulkIterations_count;
+		int inIter = distributedSettings.iters_bulkIterations_count*distributedSettings.iterationsPerThread;
 		for (int t = 0; t < distributedSettings.iters_communicate_count; t++) {
 
 			start = gettime_();
@@ -114,7 +114,7 @@ public:
 
 		if (mode == 1) {
 			if (world.rank() == 0) {
-				printf("%ith: %i CG iters, time %f, norm of gradient %E, objective %E\n",
+				printf("%ith: %i SDCA iters, time %f, norm of gradient %E, objective %E\n",
 				       iter, inner_iter, elapsedTime, grad_norm, objective);
 				logFile << iter << "," << inner_iter << "," << elapsedTime << "," << grad_norm << "," << objective << endl;
 			}

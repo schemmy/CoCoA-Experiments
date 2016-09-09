@@ -53,7 +53,7 @@ public:
 		obj = 0.0;
 
 		for (unsigned int idx = 0; idx < instance.n; idx++)
-			obj += 0.5 * (xTw[idx]  - instance.b[idx]) * (xTw[idx] - instance.b[idx]);
+			obj += 0.5 * (xTw[idx]  - 1.0) * (xTw[idx] - 1.0);
 
 		double wNorm = cblas_l2_norm(w.size(), &w[0], 1);
 
@@ -78,7 +78,7 @@ public:
 
 		double localError = 0.0;
 		for (unsigned int i = 0; i < instance.n; i++) {
-			double tmp = alpha[i] * alpha[i] * 0.5 - instance.b[i] * alpha[i];
+			double tmp = alpha[i] * alpha[i] * 0.5 -  alpha[i];
 			localError += tmp;
 		}
 
@@ -89,7 +89,7 @@ public:
 			        i < instance.A_csr_row_ptr[idx + 1]; i++) {
 				dotProduct += w[instance.A_csr_col_idx[i]] * instance.A_csr_values[i];
 			}
-			double single = 1.0 * instance.b[idx] -  dotProduct * instance.b[idx];
+			double single = 1.0  -  dotProduct * instance.b[idx];
 			double tmp = 0.5 * single * single;
 
 			localQuadLoss += tmp;
@@ -115,7 +115,7 @@ public:
 		if (mode == 1) {
 			for (unsigned int idx = 0; idx < instance.n; idx++)
 				for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++)
-					grad[instance.A_csr_col_idx[i]] += (xTw[idx] - instance.b[idx]) * instance.A_csr_values[i] * instance.b[idx]
+					grad[instance.A_csr_col_idx[i]] += (xTw[idx] - 1.0) * instance.A_csr_values[i] * instance.b[idx]
 					                                   / instance.n;
 
 			cblas_daxpy(instance.m, instance.lambda, &w[0], 1, &grad[0], 1);
@@ -130,7 +130,7 @@ public:
 
 		for (unsigned int idx = 0; idx < instance.n; idx++)
 			for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++)
-				grad[instance.A_csr_col_idx[i]] += (xTw[idx] - instance.b[idx]) * instance.A_csr_values[i] * instance.b[idx]
+				grad[instance.A_csr_col_idx[i]] += (xTw[idx] - 1.0) * instance.A_csr_values[i] * instance.b[idx]
 				                                   / instance.total_n;
 
 		if (mode == 1) {
@@ -222,8 +222,8 @@ public:
 		}
 
 		if (mode == 1) {
-			QRGramSchmidtSolver(woodburyH, p, woodburyVTy, woodburyHVTy);
-			//CGSolver(woodburyH, p, woodburyVTy, woodburyHVTy);
+			//QRGramSchmidtSolver(woodburyH, p, woodburyVTy, woodburyHVTy);
+			CGSolver(woodburyH, p, woodburyVTy, woodburyHVTy);
 		}
 		if (mode == 2) {
 			vall_reduce(world, woodburyVTy, woodburyVTy_World);
@@ -370,7 +370,7 @@ public:
 		}
 		D alphaI = instance.x[idx] + deltaAlpha[idx];
 		D deltaAl = 0; // FINISH
-		deltaAl = (1.0 * instance.b[idx] - alphaI - dotProduct * instance.b[idx]) * instance.Li[idx];
+		deltaAl = (1.0  - alphaI - dotProduct * instance.b[idx]) * instance.Li[idx];
 		deltaAlpha[idx] += deltaAl;
 
 		for (L i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++)
@@ -402,7 +402,7 @@ public:
 				xTw[idx] = xTw[idx] * instance.b[idx];
 				xTwRec[idx] = xTw[idx];
 				for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++)
-					gradientFull[instance.A_csr_col_idx[i]] += (xTw[idx] - instance.b[idx]) *
+					gradientFull[instance.A_csr_col_idx[i]] += (xTw[idx] - 1.0) *
 					        instance.A_csr_values[i] * instance.b[idx] / instance.n;
 			}
 			//cblas_daxpy(instance.m, instance.lambda, &w[0], 1, &gradientFull[0], 1);
@@ -420,9 +420,9 @@ public:
 
 			xTw[idx] = xTw[idx] * instance.b[idx];
 			for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++) {
-				gradient[instance.A_csr_col_idx[i]] += (xTw[idx] - instance.b[idx]) * instance.A_csr_values[i] * instance.b[idx]
+				gradient[instance.A_csr_col_idx[i]] += (xTw[idx] - 1.0) * instance.A_csr_values[i] * instance.b[idx]
 				                                       / batchGrad;
-				gradientRec[instance.A_csr_col_idx[i]] += (xTwRec[idx] - instance.b[idx]) * instance.A_csr_values[i] * instance.b[idx]
+				gradientRec[instance.A_csr_col_idx[i]] += (xTwRec[idx] - 1.0) * instance.A_csr_values[i] * instance.b[idx]
 				        / batchGrad;
 			}
 		}
@@ -796,7 +796,7 @@ public:
 				}
 				double alphaI = alpha[idx] + deltaAlpha[idx];
 				double deltaAl = 0;
-				deltaAl = (1.0 * instance.b[idx] - alphaI - dotProduct * instance.b[idx]) * Li[idx];
+				deltaAl = (1.0 - alphaI - dotProduct * instance.b[idx]) * Li[idx];
 				deltaAlpha[idx] += deltaAl;
 				for (unsigned int i = instance.A_csr_row_ptr[idx]; i < instance.A_csr_row_ptr[idx + 1]; i++)
 					deltaW[instance.A_csr_col_idx[i]] += 1.0 / instance.n / rho * deltaAl

@@ -1,7 +1,7 @@
 
 def main():
     exp = [4]
-    name = 'rcv'
+    name = 'news'
     for ee in range(1):
         nPart = exp[ee]
         f = open('data/%s.4/%s' %(name, name),'rU')

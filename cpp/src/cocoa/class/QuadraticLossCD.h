@@ -753,7 +753,7 @@ public:
 	}
 
 // Qihang paper, better for rcv1. For a1a, make mu smaller to get faster convergence
-	virtual void Acce_subproblem_solver_SDCAss(ProblemData<L, D> &instance, std::vector<D> &deltaAlpha, std::vector<D> &w,
+	virtual void Acce_subproblem_solver_SDCA(ProblemData<L, D> &instance, std::vector<D> &deltaAlpha, std::vector<D> &w,
 	        std::vector<D> &wBuffer, std::vector<D> &deltaW, DistributedSettings & distributedSettings,
 	        mpi::communicator &world, D gamma, Context &ctx, std::ofstream &logFile) {
 
@@ -772,7 +772,7 @@ public:
 
 		double gma = 0.1;
 		//double mu = gma / instance.oneOverLambdaN / (gma / instance.oneOverLambdaN);
-		double mu = gma / instance.oneOverLambdaN / (5.0 + gma / instance.oneOverLambdaN);
+		double mu = gma / instance.oneOverLambdaN / (0.1 + gma / instance.oneOverLambdaN);
 		double rho = (1.0 - sqrt(mu) / world.size()) / (1.0 + sqrt(mu) / world.size());
 		double rhoMul = rho;
 
@@ -856,7 +856,7 @@ public:
 	}
 
 //Peter APProx, better for a1a
-	virtual void Acce_subproblem_solver_SDCA(ProblemData<L, D> &instance, std::vector<D> &deltaAlpha,
+	virtual void Acce_subproblem_solver_SDCAss(ProblemData<L, D> &instance, std::vector<D> &deltaAlpha,
 	        std::vector<D> &w, std::vector<D> &wBuffer, std::vector<D> &deltaW, DistributedSettings & distributedSettings,
 	        mpi::communicator &world, D gamma, Context &ctx, std::ofstream &logFile) {
 
@@ -873,9 +873,8 @@ public:
 		std::vector<double> ZABuffer(instance.m);
 		std::vector<double> UABuffer(instance.m);
 		std::vector<double> delta(instance.n);
-		double theta = 1.0 / world.size();
-		double thetaOld = theta;
-		double thetasquare;
+		double muPsi = 100000.0;
+		double theta = 0.5 * sqrt(muPsi * muPsi + 4 * muPsi) - 0.5 * muPsi;
 
 		for (unsigned int t = 0; t < distributedSettings.iters_communicate_count; t++) {
 
@@ -928,19 +927,17 @@ public:
 				cblas_sum_of_vectors(uA, UABuffer, gamma);
 				cblas_sum_of_vectors(z, delta, gamma * c1);
 				cblas_sum_of_vectors(u, delta, gamma * c2);
-				thetaOld = theta;
-				thetasquare = theta * theta;
-				theta = 0.5 * sqrt(thetasquare * thetasquare + 4 * thetasquare) - 0.5 * thetasquare;
+				//theta = 0.5 * sqrt(gamma*gamma*thetasquare*thetasquare + 4*thetasquare) - 0.5 * gamma*thetasquare;
 			}
 
 			finish = gettime_();
 			elapsedTime += finish - start;
 
 			for (unsigned int idx = 0; idx < instance.n; idx++) {
-				instance.x[idx] = thetaOld * thetaOld * u[idx] + z[idx];
+				instance.x[idx] = theta * theta * u[idx] + z[idx];
 			}
 			for (unsigned int i = 0; i < instance.m; i++) {
-				w[i] = thetaOld * thetaOld * uA[i] + zA[i];
+				w[i] = theta * theta * uA[i] + zA[i];
 			}
 
 			double primalError;
