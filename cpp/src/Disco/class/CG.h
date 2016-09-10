@@ -351,11 +351,10 @@ public:
 			logFile << 0 << "," << 0 << "," << 0 << "," << grad_norm << "," << objective[0] << endl;
 		}
 
-		for (int iter = 1; iter <= 100; iter++) {
+		for (int iter = 1; iter <= 1; iter++) {
 
 			geneRandIdx(oneToN, randIdx, instance.n, batchSizeH);
 
-			start = gettime_();
 			flag[0] = 1;
 			flag[1] = 1;
 			vbroadcast(world, w, 0);
@@ -380,6 +379,9 @@ public:
 			}
 			int inner_iter = 0;
 			while (1) { //		while (flag != 0)
+
+				start = gettime_();
+
 				vbroadcast(world, u, 0);
 				if (flag[0] == 0)
 					break;
@@ -407,9 +409,15 @@ public:
 					for (I i = 0; i < instance.m ; i++)
 						u[i] = beta * u[i] + s[i];
 
-					D r_norm = cblas_l2_norm(instance.m, &r[0], 1);
+					finish = gettime_();
+					elapsedTime += finish - start;
 
-					if (r_norm <= epsilon || inner_iter > maxIter) {
+					D r_norm = cblas_l2_norm(instance.m, &r[0], 1);
+					cout<<inner_iter<< ","<< elapsedTime<< ","<< r_norm<< endl;
+					logFile << inner_iter<< ","<< elapsedTime<< ","<< r_norm<< endl;
+
+					//if (r_norm <= epsilon || inner_iter > maxIter) {
+					if ( inner_iter > 100 ) {
 						cblas_dcopy(instance.m, &v[0], 1, &vk[0], 1);
 						D vHv = cblas_ddot(instance.m, &vk[0], 1, &Hv[0], 1); //vHvT^(t) or vHvT^(t+1)
 						D vHu = cblas_ddot(instance.m, &vk[0], 1, &Hu[0], 1);
@@ -428,13 +436,11 @@ public:
 
 			vbroadcast(world, w, 0);
 
-			finish = gettime_();
-			elapsedTime += finish - start;
 
 			lossFunction->computeVectorTimesData(w, instance, xTw, world, mode);
 			lossFunction->computeObjective(w, instance, xTw, objective[0], world, mode);
 
-			output(instance, iter, inner_iter, elapsedTime, constantSum, objective, grad_norm, logFile, world, mode);
+			//output(instance, iter, inner_iter, elapsedTime, constantSum, objective, grad_norm, logFile, world, mode);
 			if (flag[1] == 0)
 				break;
 
