@@ -251,7 +251,7 @@ public:
 		double eta = 0.01;
 		double kappa = 1.0;
 		int em = 0;
-		nEpoch = 100;
+		//nEpoch = 100;
 		std::vector<double> gradAvg(instance.m);
 		std::vector<double> y(instance.n);
 		std::vector<double> C(instance.n);
