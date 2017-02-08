@@ -226,6 +226,41 @@ public:
 		}
 	}
 
+
+
+	virtual void computeObjectiveValueL1CoCoA(ProblemData<L, D> & instance,
+			mpi::communicator & world, std::vector<D> & w, double &finalDualError, double &sparse){
+
+
+		D localError = 0;
+		L localSparse = 0;
+		L sparseN = 0;
+		for (unsigned int i = 0; i < instance.n; i++) {
+			D tmp = abs(instance.x[i]);
+			localError += tmp;
+			if (instance.x[i] > 1e-8 || instance.x[i] < -1e-8){
+				localSparse += 1;
+			}
+		}
+		finalDualError = 0;
+		vall_reduce(world, &localError, &finalDualError, 1);
+		vall_reduce(world, &localSparse, &sparseN, 1);
+
+		sparse = 1.0 * sparseN / instance.total_n;
+
+		D quadTerm = 0.0;
+		for (L i = 0; i < instance.m; i++)
+			quadTerm += (w[i] - instance.b[i]) * (w[i] - instance.b[i]);
+
+		finalDualError = instance.lambda * finalDualError
+				+ 0.5 * quadTerm;
+
+
+
+	}
+
+
+
 };
 
 #endif /* HINGELOSS_H_ */

@@ -26,13 +26,26 @@ MPICPP = mpic++
 # Cluster Consolve Solver            
 
 
+
+
+
+L1CoCoA2017Spring:
+	$(MPICPP) -O3 $(DISTRIBUTED_COMPILER_OPTIONS) $(DISTRIBUTED_INCLUDE) \
+	-o $(BUILD_FOLDER)CocoaL1 \
+	$(FRONTENDS)../cocoa/cocoaL1.cpp \
+	$(DISTRIBUTED_LIB_PATH)  $(DISTRIBUTED_LINK)   
+
+	# mpirun -np 4 $(BUILD_FOLDER)CocoaL1 -A data-l1-cocoa/rcvt.4/rcvt -l 0.1  -a 1 -f 1 -p 0.001 -M 1 -C 200 -I 1000
+	mpirun -np 4 $(BUILD_FOLDER)CocoaL1 -A data-l1-cocoa/rcvt.4/rcvt -l 0.01  -a 1 -f 1 -p 0.001 -M 1 -C 200 -I 10000
+	mpirun -np 4 $(BUILD_FOLDER)CocoaL1 -A data-l1-cocoa/rcvt.4/rcvt -l 0.01  -a 1 -f 1 -p 0.001 -M 2 -C 200 -I 10000
+
 dd2016fall:
 	$(MPICPP) -O3 $(DISTRIBUTED_COMPILER_OPTIONS) $(DISTRIBUTED_INCLUDE) \
 	-o $(BUILD_FOLDER)DISCO \
 	$(FRONTENDS)../Disco/disco.cpp \
 	$(DISTRIBUTED_LIB_PATH)  $(DISTRIBUTED_LINK)   
 
-	mpirun -np 4 $(BUILD_FOLDER)DISCO -A data/a1a.4/a1a -l 0.001  -a 1 -f 1 -p 0.001 -M 3 -C 100 -I 1
+	mpirun -np 1 $(BUILD_FOLDER)DISCO -A data/covertype.4/covertype -l 0.001  -a 1 -f 1 -p 0.001 -M 1 -C 100 -I 1
 
 dd:
 	$(MPICPP) -O3 $(DISTRIBUTED_COMPILER_OPTIONS) $(DISTRIBUTED_INCLUDE) \
@@ -63,7 +76,7 @@ cocoa:
 	
 	#mpirun -np 4 $(BUILD_FOLDER)Cocoa -A data/a1a.4/a1a -l 0.001 -C 100 -I 100 -f 3 -a 1 -p 0.001 -M 8
 	#mpirun -np 4 $(BUILD_FOLDER)Cocoa -A data/rcvt.4/rcvt -l 0.0001 -C 100 -I 1000 -f 3 -a 0 -p 0.001 -M 0
-	mpirun -np 4 $(BUILD_FOLDER)Cocoa -A data/rcvt.4/rcvt -l 0.0001 -C 100 -I 1000 -f 3 -a 0 -p 0.001 -M 8
+	mpirun -np 4 $(BUILD_FOLDER)Cocoa -A data/rcvt.4/rcvt -l 0.0001 -C 400 -I 2000 -f 3 -a 0 -p 0.001 -M 8
 
 	#mpirun -np 4 $(BUILD_FOLDER)Cocoa -A data/a1a.4/a1a -l 0.001 -C 100 -I 1000 -f 1 -a 1 -p 0.001 -M 8
 	#mpirun -np 4 $(BUILD_FOLDER)Cocoa -A data/rcvt.4/rcvt -l 0.0001 -C 1000 -I 500 -f 1 -a 1 -p 0.001 -M 8

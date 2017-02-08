@@ -205,7 +205,9 @@ int main(int argc, char *argv[]) {
 	default:
 		break;
 	}
-
+	// for(int i = 0; i<instance.n; i++){
+	// 	cout<<i<<"  "<<instance.x[i]<<endl;
+	// }
 	// std::vector<double> trainLabel(instance.n);
 	// std::vector<unsigned int> trainError(2);
 	// std::vector<unsigned int> totalTrainError(2);

@@ -379,4 +379,266 @@ D loadDataFromFiles(string logFileName, int file, int totalFiles,
 	return optimal_objective;
 }
 
+
+
+
+
+template<typename D, typename L>
+int loadDistributedSparseSVMRowDataForL1CoCoA_readLabels(string inputFile, 
+		ProblemData<L, D> & part, bool zeroBased) {
+
+	int nclasses;
+	int nsamples;
+	int nfeatures;
+	long long nonzero_elements_of_input_data;
+
+	stringstream ss;
+	ss << inputFile;
+
+	// cout << "Going to parse SVM data" << endl;
+	parse_LIB_SVM_data_get_size(ss.str().c_str(), nsamples, nfeatures,
+			nonzero_elements_of_input_data);
+	// cout << "Data file " << file << " contains " << nfeatures << " features, "
+			// << nsamples << " samples " << "and total "
+			// << nonzero_elements_of_input_data << " nnz elements" << endl;
+
+	FILE* filePtr = fopen(ss.str().c_str(), "r");
+	if (filePtr == 0) {
+		printf("File   '%s' not found\n", ss.str().c_str());
+		return 0;
+	}
+
+	// cout << "Going to process data" << endl;
+
+	part.m = nfeatures;
+	part.n = nsamples;
+
+//	cout << "resize nsamples+1 " << nsamples + 1 << endl;
+	part.A_csr_row_ptr.resize(nsamples + 1);
+	part.A_csr_col_idx.resize(nonzero_elements_of_input_data);
+//	cout << "resize nnz " << nonzero_elements_of_input_data << endl;
+	part.A_csr_values.resize(nonzero_elements_of_input_data);
+//	cout << "resize nnz " << nonzero_elements_of_input_data << endl;
+	part.b.resize(nsamples);
+//	cout << "resize nsamples " << nsamples << endl;
+	L nnzPossition = 0;
+	L processedSamples = -1;
+
+
+	bool foundData =false;
+	char* stringBuffer = (char*) malloc(65536);
+	for (L i = 0; i < nsamples; i++) {
+
+
+		char c;
+		L pos = 0;
+		char* bufferPointer = stringBuffer;
+
+		do {
+			c = fgetc(filePtr);
+
+
+
+			//
+			if ((c == ' ') || (c == '\n')) {
+				if (pos == 0) {
+					//Label found
+					*(bufferPointer) = 0;
+					int value;
+					sscanf(stringBuffer, "%i", &value);
+
+					D ddval = value;
+					if (value < 100) {
+						if (nclasses == 2 && value == 0) {
+							ddval = (float) -1;
+						} else {
+						}
+
+						processedSamples++;
+						part.b[processedSamples] = ddval; // used for a1a data
+						//part.b[processedSamples] = (-1.5 + ddval) * 2.0; // used for covtype data
+						part.A_csr_row_ptr[processedSamples] = nnzPossition;
+
+						pos++;
+					}
+				} else  {
+					//Feature found
+					*(bufferPointer) = 0;
+					float value;
+					sscanf(stringBuffer, "%f", &value);
+
+					if (pos > 0) {
+
+						if (!zeroBased)
+							pos--;
+
+						if (nnzPossition < nonzero_elements_of_input_data && foundData) {
+							part.A_csr_col_idx[nnzPossition] = pos;
+							part.A_csr_values[nnzPossition] = value;
+
+							foundData=false;
+							nnzPossition++;
+						}
+
+						pos = -1;
+					}
+
+				}
+				bufferPointer = stringBuffer;
+			} else if (c == ':') {
+				//Position found
+				*(bufferPointer) = 0;
+				int value;
+				sscanf(stringBuffer, "%i", &value);
+				foundData=true;
+				pos = value;
+				bufferPointer = stringBuffer;
+			} else {
+				*(bufferPointer) = c;
+				bufferPointer++;
+			}
+
+		} while (c != '\n');
+	}
+
+	processedSamples++;
+	part.A_csr_row_ptr[processedSamples] = nnzPossition;
+	free(stringBuffer);
+	fclose(filePtr);
+	return 1;
+}
+
+
+
+
+template<typename D, typename L>
+int loadDistributedSparseSVMRowDataForL1CoCoA(string inputFile, int file, int totalFiles,
+		ProblemData<L, D> & part, bool zeroBased) {
+
+	int nclasses;
+	int nsamples;
+	int nfeatures;
+	long long nonzero_elements_of_input_data;
+
+	stringstream ss;
+	ss << inputFile;
+	if (totalFiles > 0) {
+		ss << "_" << totalFiles << "_" << file;
+	}
+	// cout << "Going to parse SVM data" << endl;
+	parse_LIB_SVM_data_get_size_ForL1CoCoA(ss.str().c_str(), nsamples, nfeatures,
+			nonzero_elements_of_input_data);
+	cout << "Data file " << file << " contains " << nfeatures << " features, "
+			<< nsamples << " samples " << "and total "
+			<< nonzero_elements_of_input_data << " nnz elements" << endl;
+
+	FILE* filePtr = fopen(ss.str().c_str(), "r");
+	if (filePtr == 0) {
+		printf("File   '%s' not found\n", ss.str().c_str());
+		return 0;
+	}
+
+	// cout << "Going to process data" << endl;
+
+	part.m = nfeatures;
+	part.n = nsamples;
+
+//	cout << "resize nsamples+1 " << nsamples + 1 << endl;
+	part.A_csr_row_ptr.resize(nsamples + 1);
+	part.A_csr_col_idx.resize(nonzero_elements_of_input_data);
+//	cout << "resize nnz " << nonzero_elements_of_input_data << endl;
+	part.A_csr_values.resize(nonzero_elements_of_input_data);
+//	cout << "resize nnz " << nonzero_elements_of_input_data << endl;
+	part.b.resize(nfeatures);
+//	cout << "resize nsamples " << nsamples << endl;
+	L nnzPossition = 0;
+	L processedSamples = -1;
+
+
+	bool foundData =false;
+	char* stringBuffer = (char*) malloc(65536);
+	for (L i = 0; i < nsamples; i++) {
+
+
+		char c;
+		L pos = 0;
+		char* bufferPointer = stringBuffer;
+
+		do {
+			c = fgetc(filePtr);
+
+
+
+			//
+			if ((c == ' ') || (c == '\n')) {
+
+				if (pos == 0) {
+					//Label found
+					*(bufferPointer) = 0;
+					int value;
+					sscanf(stringBuffer, "%i", &value);
+
+					D ddval = value;
+					if (value < 100) {
+						if (nclasses == 2 && value == 0) {
+							ddval = (float) -1;
+						} else {
+						}
+
+						processedSamples++;
+						//part.b[processedSamples] = ddval; // used for a1a data
+						//part.b[processedSamples] = (-1.5 + ddval) * 2.0; // used for covtype data
+						part.A_csr_row_ptr[processedSamples] = nnzPossition;
+
+						pos++;
+					}
+				} else  {
+					//Feature found
+					*(bufferPointer) = 0;
+					float value;
+					sscanf(stringBuffer, "%f", &value);
+
+					if (pos > 0) {
+
+						if (!zeroBased)
+							pos--;
+
+						if (nnzPossition < nonzero_elements_of_input_data && foundData) {
+							part.A_csr_col_idx[nnzPossition] = pos;
+							part.A_csr_values[nnzPossition] = value;
+
+							foundData=false;
+							nnzPossition++;
+						}
+
+						pos = -1;
+					}
+
+				}
+				bufferPointer = stringBuffer;
+			} else if (c == ':') {
+				//Position found
+				*(bufferPointer) = 0;
+				int value;
+				sscanf(stringBuffer, "%i", &value);
+				foundData=true;
+				pos = value;
+				bufferPointer = stringBuffer;
+			} else {
+				*(bufferPointer) = c;
+				bufferPointer++;
+			}
+
+		} while (c != '\n');
+	}
+
+	processedSamples++;
+	part.A_csr_row_ptr[processedSamples] = nnzPossition;
+	free(stringBuffer);
+	fclose(filePtr);
+	return 1;
+}
+
+
+
 #endif /* DISTRIBUTED_INSTANCES_LOADER_H_ */

@@ -1,3 +1,9 @@
+cpp/data/
+
+*.log
+*.mpiP
+*.mk
+
 # Compiled Object files
 *.slo
 *.lo

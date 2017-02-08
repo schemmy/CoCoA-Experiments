@@ -111,6 +111,25 @@ public:
 
 	}
 
+
+
+	virtual void L1CoCoA_subproblem_solver_SDCA(ProblemData<L, D> &instance, std::vector<D> &deltaAlpha,
+	                                    std::vector<D> &w, std::vector<D> &wBuffer, std::vector<D> &deltaW, DistributedSettings & distributedSettings,
+	                                    mpi::communicator & world, D gamma, Context & ctx, std::ofstream & logFile){
+
+	}
+
+	virtual void L1CoCoA_Acce_subproblem_solver_SDCA(ProblemData<L, D> &instance, std::vector<D> &deltaAlpha,
+	                                    std::vector<D> &w, std::vector<D> &wBuffer, std::vector<D> &deltaW, DistributedSettings & distributedSettings,
+	                                    mpi::communicator & world, D gamma, Context & ctx, std::ofstream & logFile){
+		
+	}
+
+	virtual void computeObjectiveValueL1CoCoA(ProblemData<L, D> & instance,
+			mpi::communicator & world, std::vector<D> & w, double &finalDualError, double &sparse){
+
+	}
+
 };
 
 #endif /* LOSSFUNCTION_H_ */
