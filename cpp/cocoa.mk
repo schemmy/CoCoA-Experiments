@@ -36,8 +36,7 @@ L1CoCoA2017Spring:
 	$(DISTRIBUTED_LIB_PATH)  $(DISTRIBUTED_LINK)   
 
 	# mpirun -np 4 $(BUILD_FOLDER)CocoaL1 -A data-l1-cocoa/rcvt.4/rcvt -l 0.1  -a 1 -f 1 -p 0.001 -M 1 -C 200 -I 1000
-	mpirun -np 4 $(BUILD_FOLDER)CocoaL1 -A data-l1-cocoa/rcvt.4/rcvt -l 0.01  -a 1 -f 1 -p 0.001 -M 1 -C 200 -I 10000
-	mpirun -np 4 $(BUILD_FOLDER)CocoaL1 -A data-l1-cocoa/rcvt.4/rcvt -l 0.01  -a 1 -f 1 -p 0.001 -M 2 -C 200 -I 10000
+	mpirun -np 4 $(BUILD_FOLDER)CocoaL1 -A data-l1-cocoa/rcvt.4/rcvt -l 1  -a 1 -f 1 -p 0.001 -M 2 -C 200 -I 1000
 
 dd2016fall:
 	$(MPICPP) -O3 $(DISTRIBUTED_COMPILER_OPTIONS) $(DISTRIBUTED_INCLUDE) \

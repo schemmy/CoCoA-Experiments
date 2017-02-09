@@ -815,6 +815,15 @@ public:
 
 			this->computeObjectiveValueL1CoCoA(instance, world, w, dualError, sparse);
 
+			L localSparse = 0;
+			L sparseN = 0;
+			for (unsigned int i = 0; i < instance.n; i++) {
+				if (z[i] > 1e-8 || z[i] < -1e-8){
+					localSparse += 1;
+				}
+			}
+			vall_reduce(world, &localSparse, &sparseN, 1);
+			sparse = 1.0 * sparseN / instance.total_n;
 
 			if (ctx.settings.verbose) {
 				cout << "Iteration " << t << " elapsed time " << elapsedTime
